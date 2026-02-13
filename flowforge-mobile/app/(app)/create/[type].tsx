@@ -16,7 +16,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import * as Sentry from '@sentry/react-native';
-import { createRepository, deleteRepository, type ProjectTemplate } from '../../../lib/github';
+import { createRepository, deleteRepository } from '../../../lib/github';
+import type { WorkflowPreset, StackPreset } from '../../../lib/types';
 import { useStore } from '../../../stores/store';
 
 const schema = z.object({
@@ -34,15 +35,25 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const templateTitles: Record<ProjectTemplate, string> = {
-  'web-app': 'Web App',
-  'cli-tool': 'CLI Tool',
+function parseTypeParam(type: string): { workflow: WorkflowPreset; stack: StackPreset } {
+  const [workflow, stack] = type.split('--') as [WorkflowPreset, StackPreset];
+  return { workflow: workflow || 'greenfield', stack: stack || 'custom' };
+}
+
+const workflowTitles: Record<WorkflowPreset, string> = {
+  research: 'Research',
+  feature: 'Feature',
+  greenfield: 'New Project',
+  learning: 'Learning',
 };
 
 export default function CreateForm() {
   const router = useRouter();
-  const { type } = useLocalSearchParams<{ type: ProjectTemplate }>();
+  const { type } = useLocalSearchParams<{ type: string }>();
   const { token, setLastCreatedRepo } = useStore();
+
+  const { workflow, stack } = parseTypeParam(type || 'greenfield--custom');
+  const templateTitle = workflowTitles[workflow] || 'Project';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +84,8 @@ export default function CreateForm() {
         name: data.name,
         description: data.description,
         isPrivate: data.isPrivate,
-        template: type as ProjectTemplate,
+        workflow,
+        stack,
       });
 
       if (result.success && result.repo) {
@@ -107,8 +119,6 @@ export default function CreateForm() {
       setError('Failed to delete repository. Please delete it manually on GitHub.');
     }
   };
-
-  const templateTitle = type ? templateTitles[type as ProjectTemplate] : 'Project';
 
   return (
     <SafeAreaView className="flex-1 bg-background">

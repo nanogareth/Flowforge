@@ -1,10 +1,9 @@
 import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { ProjectTemplate } from '../../lib/github';
 
 interface TemplateOption {
-  id: ProjectTemplate;
+  id: string; // encoded as "workflow--stack"
   title: string;
   description: string;
   icon: string;
@@ -12,13 +11,13 @@ interface TemplateOption {
 
 const templates: TemplateOption[] = [
   {
-    id: 'web-app',
+    id: 'greenfield--typescript-react',
     title: 'Web App',
     description: 'React, Next.js, or similar web applications',
     icon: '🌐',
   },
   {
-    id: 'cli-tool',
+    id: 'greenfield--typescript-node',
     title: 'CLI Tool',
     description: 'Command-line applications and utilities',
     icon: '⌨️',
@@ -28,8 +27,8 @@ const templates: TemplateOption[] = [
 export default function CreateProject() {
   const router = useRouter();
 
-  const handleSelectTemplate = (template: ProjectTemplate) => {
-    router.push(`/(app)/create/${template}`);
+  const handleSelectTemplate = (id: string) => {
+    router.push(`/(app)/create/${id}`);
   };
 
   return (
@@ -71,7 +70,7 @@ export default function CreateProject() {
         {/* Coming Soon */}
         <View className="mt-8 p-4 rounded-lg border border-border border-dashed">
           <Text className="text-gray-500 text-center">
-            More templates coming soon: Library, Research, Writing
+            More workflows coming soon: Research, Feature, Learning
           </Text>
         </View>
       </View>

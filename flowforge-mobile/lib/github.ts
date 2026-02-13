@@ -1,30 +1,6 @@
 import { Octokit } from '@octokit/rest';
-
-export type ProjectTemplate = 'web-app' | 'cli-tool';
-
-export interface CreateRepoOptions {
-  name: string;
-  description?: string;
-  isPrivate: boolean;
-  template: ProjectTemplate;
-}
-
-export interface CreateRepoResult {
-  success: boolean;
-  repo?: {
-    full_name: string;
-    html_url: string;
-    clone_url: string;
-    ssh_url: string;
-  };
-  error?: string;
-  partialRepo?: string;
-}
-
-interface FileToCreate {
-  path: string;
-  content: string;
-}
+import type { CreateRepoOptions, CreateRepoResult, FileToCreate } from './types';
+import { composeTemplate } from './templates/compose';
 
 // Rate limit: minimum 500ms between repo creations
 let lastCreationTime = 0;
@@ -45,7 +21,7 @@ export async function createRepository(
   lastCreationTime = Date.now();
 
   const octokit = new Octokit({ auth: token });
-  const { name, description, isPrivate, template } = options;
+  const { name, description, isPrivate, workflow, stack } = options;
 
   let repoFullName: string | undefined;
 
@@ -61,8 +37,8 @@ export async function createRepository(
     repoFullName = repo.full_name;
     const [owner, repoName] = repo.full_name.split('/');
 
-    // Step 2: Get template files
-    const files = getTemplateFiles(template, name, description);
+    // Step 2: Compose template files from workflow + stack
+    const files: FileToCreate[] = composeTemplate(workflow, stack, name, description);
 
     // Step 3: Create blobs for each file
     const blobs = await Promise.all(
@@ -118,6 +94,9 @@ export async function createRepository(
         html_url: repo.html_url,
         clone_url: repo.clone_url,
         ssh_url: repo.ssh_url,
+        workflow,
+        stack,
+        createdAt: new Date().toISOString(),
       },
     };
   } catch (error: unknown) {
@@ -166,257 +145,6 @@ export async function deleteRepository(
   } catch {
     return false;
   }
-}
-
-function getTemplateFiles(
-  template: ProjectTemplate,
-  projectName: string,
-  description?: string
-): FileToCreate[] {
-  const templates = {
-    'web-app': getWebAppTemplate,
-    'cli-tool': getCliToolTemplate,
-  };
-
-  return templates[template](projectName, description || '');
-}
-
-export function getWebAppTemplate(
-  name: string,
-  description: string
-): FileToCreate[] {
-  return [
-    {
-      path: 'CLAUDE.md',
-      content: `# ${name}
-
-${description}
-
-## Project Overview
-
-This is a web application project.
-
-## Tech Stack
-
-- Framework: (To be determined)
-- Styling: (To be determined)
-- Deployment: (To be determined)
-
-## Development Guidelines
-
-- Write clean, maintainable code
-- Follow established patterns in the codebase
-- Add tests for new functionality
-- Update documentation as needed
-
-## Getting Started
-
-\`\`\`bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-\`\`\`
-
-## Project Structure
-
-\`\`\`
-src/
-├── components/    # Reusable UI components
-├── pages/         # Page components/routes
-├── lib/           # Utility functions
-├── hooks/         # Custom React hooks
-└── styles/        # Global styles
-\`\`\`
-`,
-    },
-    {
-      path: 'README.md',
-      content: `# ${name}
-
-${description}
-
-## Getting Started
-
-\`\`\`bash
-git clone https://github.com/USERNAME/${name}.git
-cd ${name}
-npm install
-npm run dev
-\`\`\`
-
-## License
-
-MIT
-`,
-    },
-    {
-      path: '.gitignore',
-      content: `# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Build
-dist/
-build/
-.next/
-out/
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-
-# Testing
-coverage/
-
-# Misc
-*.tsbuildinfo
-`,
-    },
-  ];
-}
-
-export function getCliToolTemplate(
-  name: string,
-  description: string
-): FileToCreate[] {
-  return [
-    {
-      path: 'CLAUDE.md',
-      content: `# ${name}
-
-${description}
-
-## Project Overview
-
-This is a command-line tool project.
-
-## Tech Stack
-
-- Language: TypeScript/Node.js
-- CLI Framework: (commander, yargs, or similar)
-- Build: tsup or esbuild
-
-## Development Guidelines
-
-- Keep the CLI interface intuitive
-- Provide helpful error messages
-- Support --help for all commands
-- Add tests for command parsing and core logic
-
-## Getting Started
-
-\`\`\`bash
-# Install dependencies
-npm install
-
-# Run in development
-npm run dev -- [args]
-
-# Build
-npm run build
-
-# Run built version
-node dist/index.js [args]
-\`\`\`
-
-## Command Structure
-
-\`\`\`
-${name} <command> [options]
-
-Commands:
-  (Define your commands here)
-
-Options:
-  -h, --help     Show help
-  -v, --version  Show version
-\`\`\`
-`,
-    },
-    {
-      path: 'README.md',
-      content: `# ${name}
-
-${description}
-
-## Installation
-
-\`\`\`bash
-npm install -g ${name}
-\`\`\`
-
-## Usage
-
-\`\`\`bash
-${name} --help
-\`\`\`
-
-## Development
-
-\`\`\`bash
-git clone https://github.com/USERNAME/${name}.git
-cd ${name}
-npm install
-npm run dev
-\`\`\`
-
-## License
-
-MIT
-`,
-    },
-    {
-      path: '.gitignore',
-      content: `# Dependencies
-node_modules/
-
-# Build
-dist/
-
-# Environment
-.env
-.env.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-npm-debug.log*
-
-# Testing
-coverage/
-
-# Misc
-*.tsbuildinfo
-`,
-    },
-  ];
 }
 
 // Validation helper

@@ -1,18 +1,12 @@
 import { create } from 'zustand';
 import { Octokit } from '@octokit/rest';
 import { getToken, saveToken, clearToken } from '../lib/auth';
+import type { CreatedRepo } from '../lib/types';
 
 interface User {
   login: string;
   name: string | null;
   avatar_url: string;
-}
-
-interface CreatedRepo {
-  full_name: string;
-  html_url: string;
-  clone_url: string;
-  ssh_url: string;
 }
 
 interface AppState {
@@ -25,12 +19,16 @@ interface AppState {
   // Last created repo (for success screen)
   lastCreatedRepo: CreatedRepo | null;
 
+  // Recent repos (foundation for future dashboard)
+  recentRepos: CreatedRepo[];
+
   // Actions
   initialize: () => Promise<void>;
   login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   setLastCreatedRepo: (repo: CreatedRepo | null) => void;
+  addRecentRepo: (repo: CreatedRepo) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -39,6 +37,7 @@ export const useStore = create<AppState>((set, get) => ({
   isLoading: true,
   error: null,
   lastCreatedRepo: null,
+  recentRepos: [],
 
   initialize: async () => {
     try {
@@ -78,10 +77,20 @@ export const useStore = create<AppState>((set, get) => ({
 
   logout: async () => {
     await clearToken();
-    set({ token: null, user: null, lastCreatedRepo: null });
+    set({ token: null, user: null, lastCreatedRepo: null, recentRepos: [] });
   },
 
   clearError: () => set({ error: null }),
 
-  setLastCreatedRepo: (repo) => set({ lastCreatedRepo: repo }),
+  setLastCreatedRepo: (repo) => {
+    set({ lastCreatedRepo: repo });
+    if (repo) {
+      get().addRecentRepo(repo);
+    }
+  },
+
+  addRecentRepo: (repo) =>
+    set((state) => ({
+      recentRepos: [repo, ...state.recentRepos.filter((r) => r.full_name !== repo.full_name)],
+    })),
 }));
