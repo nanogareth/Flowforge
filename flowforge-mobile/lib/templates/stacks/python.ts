@@ -31,6 +31,40 @@ py -m black .          # Format
 MIT
 `,
     },
+    {
+      path: 'pyproject.toml',
+      content: `[project]
+name = "${name}"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-json-report",
+    "black",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+`,
+    },
+    {
+      path: 'tests/conftest.py',
+      content: `"""Pytest configuration — shared fixtures and settings."""
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "slow: mark test as slow-running")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+`,
+    },
   ];
 }
 

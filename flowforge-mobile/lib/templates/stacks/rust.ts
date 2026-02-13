@@ -30,6 +30,18 @@ cargo check            # Type check (fast compile check)
 MIT
 `,
     },
+    {
+      path: 'Cargo.toml',
+      content: `[package]
+name = "${name}"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+`,
+    },
   ];
 }
 

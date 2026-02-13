@@ -1,6 +1,8 @@
 import type { WorkflowPreset, StackPreset, FileToCreate } from '../types';
 import { assembleClaudeMd, type ClaudeMdSection } from './claude-md';
 import { getPlatformFiles, getPlatformClaudeMdSections, getPlatformGitignore } from './platform';
+import { buildSettings } from './settings';
+import { getDevcontainerFiles } from './devcontainer';
 
 import * as researchWorkflow from './workflows/research';
 import * as featureWorkflow from './workflows/feature';
@@ -58,16 +60,22 @@ export function composeTemplate(
     sMod.getStackGitignore()
   );
 
-  // 5. Combine all files
+  // 5. Build settings.json and devcontainer
+  const settingsContent = buildSettings(workflow, stack);
+  const devcontainerFiles = getDevcontainerFiles(stack, name);
+
+  // 6. Combine all files
   const allFiles: FileToCreate[] = [
     ...platformFiles,
     ...workflowFiles,
     ...stackFiles,
+    ...devcontainerFiles,
     { path: 'CLAUDE.md', content: claudeMdContent },
     { path: '.gitignore', content: gitignoreContent },
+    { path: '.claude/settings.json', content: settingsContent },
   ];
 
-  // 6. Deduplicate by path (later sources win)
+  // 7. Deduplicate by path (later sources win)
   return deduplicateFiles(allFiles);
 }
 

@@ -1,5 +1,7 @@
 import { composeTemplate } from '../lib/templates/compose';
 import { assembleClaudeMd, type ClaudeMdSection } from '../lib/templates/claude-md';
+import { buildSettings } from '../lib/templates/settings';
+import { getDevcontainerFiles } from '../lib/templates/devcontainer';
 import { isValidRepoName } from '../lib/github';
 import type { WorkflowPreset, StackPreset } from '../lib/types';
 
@@ -280,6 +282,315 @@ describe('Repository Name Validation', () => {
   });
 });
 
+describe('Settings Generation', () => {
+  const workflows: WorkflowPreset[] = ['research', 'feature', 'greenfield', 'learning'];
+  const stacks: StackPreset[] = ['typescript-react', 'typescript-node', 'python', 'rust', 'custom'];
+
+  for (const workflow of workflows) {
+    for (const stack of stacks) {
+      it(`${workflow} + ${stack} should include settings.json`, () => {
+        const files = composeTemplate(workflow, stack, 'test', 'Test');
+        const paths = files.map((f) => f.path);
+        expect(paths).toContain('.claude/settings.json');
+      });
+    }
+  }
+
+  it('should include Stop hook for research workflow', () => {
+    const settings = JSON.parse(buildSettings('research', 'python'));
+    expect(settings.hooks.Stop).toBeDefined();
+    expect(settings.hooks.Stop.length).toBeGreaterThan(0);
+  });
+
+  it('should include Stop hook for feature workflow', () => {
+    const settings = JSON.parse(buildSettings('feature', 'typescript-react'));
+    expect(settings.hooks.Stop).toBeDefined();
+  });
+
+  it('should include Stop hook for greenfield workflow', () => {
+    const settings = JSON.parse(buildSettings('greenfield', 'rust'));
+    expect(settings.hooks.Stop).toBeDefined();
+  });
+
+  it('should NOT include Stop hook for learning workflow', () => {
+    const settings = JSON.parse(buildSettings('learning', 'custom'));
+    expect(settings.hooks.Stop).toBeUndefined();
+  });
+
+  it('should NOT include post-typecheck for learning workflow', () => {
+    const settings = JSON.parse(buildSettings('learning', 'python'));
+    const postToolUse = settings.hooks.PostToolUse;
+    const allCommands = postToolUse.flatMap(
+      (entry: { hooks: { command: string }[] }) =>
+        entry.hooks.map((h: { command: string }) => h.command)
+    );
+    expect(allCommands.some((c: string) => c.includes('post-typecheck'))).toBe(false);
+  });
+
+  it('should have Python env vars for research + python', () => {
+    const settings = JSON.parse(buildSettings('research', 'python'));
+    expect(settings.env.TEST_RUNNER_CMD).toContain('pytest');
+    expect(settings.env.TYPE_CHECK_CMD).toContain('mypy');
+    expect(settings.env.FORMAT_CMD).toBe('black');
+    expect(settings.env.LINT_CMD).toContain('ruff');
+    expect(settings.env.TEST_REPORT_FORMAT).toBe('pytest-json');
+  });
+
+  it('should have TS env vars for feature + typescript-react', () => {
+    const settings = JSON.parse(buildSettings('feature', 'typescript-react'));
+    expect(settings.env.TEST_RUNNER_CMD).toContain('jest');
+    expect(settings.env.TYPE_CHECK_CMD).toContain('tsc');
+    expect(settings.env.FORMAT_CMD).toContain('prettier');
+    expect(settings.env.LINT_CMD).toContain('eslint');
+    expect(settings.env.TEST_REPORT_FORMAT).toBe('jest-json');
+  });
+
+  it('should have Rust env vars for greenfield + rust', () => {
+    const settings = JSON.parse(buildSettings('greenfield', 'rust'));
+    expect(settings.env.TEST_RUNNER_CMD).toContain('cargo test');
+    expect(settings.env.TYPE_CHECK_CMD).toBe('cargo check');
+    expect(settings.env.FORMAT_CMD).toBe('rustfmt');
+    expect(settings.env.LINT_CMD).toBe('cargo clippy');
+    expect(settings.env.TEST_REPORT_FORMAT).toBe('cargo-json');
+  });
+
+  it('should have no env block for learning + custom', () => {
+    const settings = JSON.parse(buildSettings('learning', 'custom'));
+    expect(settings.env).toBeUndefined();
+  });
+
+  it('should always include PreToolUse hooks', () => {
+    const settings = JSON.parse(buildSettings('learning', 'custom'));
+    expect(settings.hooks.PreToolUse).toBeDefined();
+    expect(settings.hooks.PreToolUse.length).toBe(2);
+  });
+
+  it('should always include SessionStart and PreCompact hooks', () => {
+    const settings = JSON.parse(buildSettings('learning', 'custom'));
+    expect(settings.hooks.SessionStart).toBeDefined();
+    expect(settings.hooks.PreCompact).toBeDefined();
+  });
+});
+
+describe('Devcontainer', () => {
+  it('should produce devcontainer.json and post-create.sh', () => {
+    const files = getDevcontainerFiles('python', 'test-project');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.devcontainer/devcontainer.json');
+    expect(paths).toContain('.devcontainer/post-create.sh');
+  });
+
+  it('should include python feature for python stack', () => {
+    const files = getDevcontainerFiles('python', 'test');
+    const devcontainer = JSON.parse(
+      files.find((f) => f.path === '.devcontainer/devcontainer.json')!.content
+    );
+    expect(Object.keys(devcontainer.features)).toContain(
+      'ghcr.io/devcontainers/features/python:1'
+    );
+  });
+
+  it('should include node feature for typescript-react stack', () => {
+    const files = getDevcontainerFiles('typescript-react', 'test');
+    const devcontainer = JSON.parse(
+      files.find((f) => f.path === '.devcontainer/devcontainer.json')!.content
+    );
+    expect(Object.keys(devcontainer.features)).toContain(
+      'ghcr.io/devcontainers/features/node:1'
+    );
+  });
+
+  it('should include node feature for typescript-node stack', () => {
+    const files = getDevcontainerFiles('typescript-node', 'test');
+    const devcontainer = JSON.parse(
+      files.find((f) => f.path === '.devcontainer/devcontainer.json')!.content
+    );
+    expect(Object.keys(devcontainer.features)).toContain(
+      'ghcr.io/devcontainers/features/node:1'
+    );
+  });
+
+  it('should include rust feature for rust stack', () => {
+    const files = getDevcontainerFiles('rust', 'test');
+    const devcontainer = JSON.parse(
+      files.find((f) => f.path === '.devcontainer/devcontainer.json')!.content
+    );
+    expect(Object.keys(devcontainer.features)).toContain(
+      'ghcr.io/devcontainers/features/rust:1'
+    );
+  });
+
+  it('should not include features for custom stack', () => {
+    const files = getDevcontainerFiles('custom', 'test');
+    const devcontainer = JSON.parse(
+      files.find((f) => f.path === '.devcontainer/devcontainer.json')!.content
+    );
+    expect(devcontainer.features).toBeUndefined();
+  });
+
+  it('should install python tools in post-create.sh for python stack', () => {
+    const files = getDevcontainerFiles('python', 'test');
+    const postCreate = files.find((f) => f.path === '.devcontainer/post-create.sh')!;
+    expect(postCreate.content).toContain('black');
+    expect(postCreate.content).toContain('ruff');
+    expect(postCreate.content).toContain('mypy');
+    expect(postCreate.content).toContain('pytest');
+  });
+
+  it('should install TS tools in post-create.sh for typescript-react stack', () => {
+    const files = getDevcontainerFiles('typescript-react', 'test');
+    const postCreate = files.find((f) => f.path === '.devcontainer/post-create.sh')!;
+    expect(postCreate.content).toContain('typescript');
+    expect(postCreate.content).toContain('eslint');
+  });
+
+  it('should install rustfmt and clippy for rust stack', () => {
+    const files = getDevcontainerFiles('rust', 'test');
+    const postCreate = files.find((f) => f.path === '.devcontainer/post-create.sh')!;
+    expect(postCreate.content).toContain('rustfmt');
+    expect(postCreate.content).toContain('clippy');
+  });
+
+  it('should include devcontainer files in composed template', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.devcontainer/devcontainer.json');
+    expect(paths).toContain('.devcontainer/post-create.sh');
+  });
+});
+
+describe('Hook Scripts', () => {
+  const HOOK_SCRIPTS = [
+    '.claude/hooks/block-test-execution.sh',
+    '.claude/hooks/protect-files.sh',
+    '.claude/hooks/auto-format.sh',
+    '.claude/hooks/auto-deps.sh',
+    '.claude/hooks/auto-remap.sh',
+    '.claude/hooks/post-typecheck.sh',
+    '.claude/hooks/session-state.sh',
+    '.claude/hooks/pre-compact-handover.sh',
+    '.claude/hooks/stop-test-loop.sh',
+    '.claude/hooks/post-explore-reminder.sh',
+  ];
+
+  it('should include all 10 hook scripts in scaffolded output', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+
+    for (const hookScript of HOOK_SCRIPTS) {
+      expect(paths).toContain(hookScript);
+    }
+  });
+
+  it('should include hook scripts even for learning + custom', () => {
+    const files = composeTemplate('learning', 'custom', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+
+    for (const hookScript of HOOK_SCRIPTS) {
+      expect(paths).toContain(hookScript);
+    }
+  });
+
+  it('should include hook-check command', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('.claude/commands/hook-check.md');
+  });
+
+  it('stop-test-loop.sh should check stop_hook_active to prevent loops', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const stopHook = files.find(
+      (f) => f.path === '.claude/hooks/stop-test-loop.sh'
+    )!;
+    expect(stopHook.content).toContain('stop_hook_active');
+  });
+
+  it('all hook scripts should have shebang line', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    for (const hookPath of HOOK_SCRIPTS) {
+      const file = files.find((f) => f.path === hookPath)!;
+      expect(file.content.startsWith('#!/bin/bash')).toBe(true);
+    }
+  });
+});
+
+describe('Stack Config Files', () => {
+  it('typescript-react should include tsconfig.json', () => {
+    const files = composeTemplate('feature', 'typescript-react', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('tsconfig.json');
+
+    const tsconfig = JSON.parse(
+      files.find((f) => f.path === 'tsconfig.json')!.content
+    );
+    expect(tsconfig.compilerOptions.strict).toBe(true);
+    expect(tsconfig.compilerOptions.jsx).toBe('react-jsx');
+  });
+
+  it('typescript-node should include tsconfig.json', () => {
+    const files = composeTemplate('feature', 'typescript-node', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('tsconfig.json');
+
+    const tsconfig = JSON.parse(
+      files.find((f) => f.path === 'tsconfig.json')!.content
+    );
+    expect(tsconfig.compilerOptions.strict).toBe(true);
+    expect(tsconfig.compilerOptions.module).toBe('NodeNext');
+  });
+
+  it('python should include pyproject.toml', () => {
+    const files = composeTemplate('research', 'python', 'test-py', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('pyproject.toml');
+
+    const pyproject = files.find((f) => f.path === 'pyproject.toml')!;
+    expect(pyproject.content).toContain('test-py');
+    expect(pyproject.content).toContain('pytest');
+    expect(pyproject.content).toContain('black');
+    expect(pyproject.content).toContain('ruff');
+    expect(pyproject.content).toContain('mypy');
+  });
+
+  it('python should include tests/conftest.py', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('tests/conftest.py');
+  });
+
+  it('rust should include Cargo.toml', () => {
+    const files = composeTemplate('greenfield', 'rust', 'my-crate', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('Cargo.toml');
+
+    const cargo = files.find((f) => f.path === 'Cargo.toml')!;
+    expect(cargo.content).toContain('my-crate');
+    expect(cargo.content).toContain('edition = "2021"');
+  });
+
+  it('custom should not include stack config files', () => {
+    const files = composeTemplate('learning', 'custom', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).not.toContain('tsconfig.json');
+    expect(paths).not.toContain('pyproject.toml');
+    expect(paths).not.toContain('Cargo.toml');
+  });
+});
+
+describe('Tests Reports Directory', () => {
+  it('should include tests/reports/.gitkeep', () => {
+    const files = composeTemplate('research', 'python', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('tests/reports/.gitkeep');
+  });
+
+  it('should include tests/reports/.gitkeep for all combos', () => {
+    const files = composeTemplate('learning', 'custom', 'test', 'Test');
+    const paths = files.map((f) => f.path);
+    expect(paths).toContain('tests/reports/.gitkeep');
+  });
+});
+
 describe('Composition Matrix — all combinations produce valid files', () => {
   const workflows: WorkflowPreset[] = ['research', 'feature', 'greenfield', 'learning'];
   const stacks: StackPreset[] = ['typescript-react', 'typescript-node', 'python', 'rust', 'custom'];
@@ -291,6 +602,16 @@ describe('Composition Matrix — all combinations produce valid files', () => {
     '.claude/references/explorations/_index.md',
     'docs/handover/.gitkeep',
     '.claude/commands/session-handover.md',
+    '.claude/settings.json',
+    '.claude/hooks/block-test-execution.sh',
+    '.claude/hooks/protect-files.sh',
+    '.claude/hooks/auto-format.sh',
+    '.claude/hooks/session-state.sh',
+    '.claude/hooks/pre-compact-handover.sh',
+    '.claude/commands/hook-check.md',
+    'tests/reports/.gitkeep',
+    '.devcontainer/devcontainer.json',
+    '.devcontainer/post-create.sh',
   ];
 
   for (const workflow of workflows) {
