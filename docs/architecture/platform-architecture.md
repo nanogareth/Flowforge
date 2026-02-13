@@ -2,8 +2,8 @@
 
 > Universal layer — every project gets this regardless of workflow or stack.
 
-**Status:** v3.0 — split from unified design doc
-**Date:** 2026-02-12
+**Status:** v3.1 — hook scripts, settings generation, and devcontainer implemented in template system
+**Date:** 2026-02-13
 
 ---
 

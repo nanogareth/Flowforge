@@ -2,8 +2,8 @@
 
 > FlowForge's role as project scaffolder and command center, plus the template composition system.
 
-**Status:** v3.0
-**Date:** 2026-02-12
+**Status:** v3.1 — composition system, settings, devcontainer, and hook scripts implemented
+**Date:** 2026-02-13
 
 ---
 
@@ -11,13 +11,11 @@
 
 FlowForge is a React Native (Expo) mobile app that creates GitHub repositories pre-configured with CLAUDE.md templates and a full Claude Code (CC) automation layer.
 
-**Today (MVP):** FlowForge is a scaffolder. The user selects a project type, fills in a name and description, and FlowForge creates a GitHub repo with template files (`CLAUDE.md`, `README.md`, `.gitignore`) via the Octokit Git Data API (blob -> tree -> commit -> ref). The current implementation lives in `flowforge-mobile/lib/github.ts` with two simple templates (`web-app` and `cli-tool`) that produce flat `FileToCreate[]` arrays.
+**Current state:** FlowForge scaffolds fully operational CC environments via a three-layer template composition system (`flowforge-mobile/lib/templates/`). The user selects a workflow preset and stack, fills in a name and description, and FlowForge creates a GitHub repo with 30+ files via the Octokit Git Data API (blob → tree → commit → ref). The repo ships with hook scripts, `.claude/settings.json` (hook wiring + env vars), `.devcontainer/`, slash commands, reference library skeleton, and a fully assembled `CLAUDE.md`. Any CC instance that clones the repo inherits the full automation layer.
 
-**Tomorrow (v3):** FlowForge becomes a project command center for monitoring and directing CC work from mobile. The repo it creates is no longer a handful of starter files -- it is a **deployable CC operating environment**. Hooks, scripts, slash commands, reference indexes, devcontainer configs, and workflow presets all live in git. Any CC instance that clones the repo inherits the full automation layer without additional setup.
+**Next:** FlowForge evolves into a project command center. Two remaining moves:
 
-The transition from "scaffolder" to "command center" happens in two moves:
-
-1. Replace the flat template functions with the **template composition system** (sections 3-7 below), so every new repo ships with the automation layer described in `platform-architecture.md`.
+1. Build the **workflow/stack selection UI** (section 8 below) — screens for choosing workflow, stack, and project details.
 2. Add a **project dashboard** (section 10 below) that reads project state from repos FlowForge has already created, turning the app into an ongoing control surface rather than a one-shot launcher.
 
 ---
@@ -83,113 +81,123 @@ User selects:           workflow = 'research'
 
 Universal files present in every repo regardless of workflow or stack. These establish the CC operating environment described in `platform-architecture.md`.
 
+**Implemented in:** `flowforge-mobile/lib/templates/platform.ts`
+
 ```
-.claude/references/_index.md           # Empty master reference index skeleton
-.claude/references/error-corrections/
-    _index.md                          # Empty error corrections index
-.claude/scripts/codebase-mapper.py     # AST-based codebase mapper
+.claude/hooks/block-test-execution.sh  # PreToolUse(Bash): prevent CC running tests
+.claude/hooks/protect-files.sh         # PreToolUse(Edit|Write): block writes to .env, .db
+.claude/hooks/auto-format.sh           # PostToolUse(Edit|Write): parameterised via FORMAT_CMD
+.claude/hooks/auto-deps.sh            # PostToolUse(Edit|Write): install deps (async)
+.claude/hooks/auto-remap.sh           # PostToolUse(Write): codebase mapper regen (async)
+.claude/hooks/post-typecheck.sh       # PostToolUse(Edit|Write): parameterised via TYPE_CHECK_CMD
+.claude/hooks/session-state.sh        # SessionStart: inject test status, handover, plan phase
+.claude/hooks/pre-compact-handover.sh # PreCompact(auto): emergency state capture
+.claude/hooks/stop-test-loop.sh       # Stop: TDD loop via TEST_RUNNER_CMD + LINT_CMD
+.claude/hooks/post-explore-reminder.sh # PostToolUse(Task): persist exploration findings
+.claude/commands/session-handover.md   # /session-handover slash command
 .claude/commands/remap.md              # /remap slash command
 .claude/commands/stack-check.md        # /stack-check slash command
-.claude/hooks/block-test-execution.sh  # PreToolUse: prevent CC running tests
-.claude/hooks/protect-files.sh         # PreToolUse: block writes to .env, .db
-.claude/hooks/auto-format.sh           # PostToolUse: black/prettier/rustfmt
-.claude/hooks/auto-deps.sh            # PostToolUse: install deps (async)
-.claude/hooks/auto-remap.sh           # PostToolUse: codebase mapper regen (async)
-.claude/hooks/session-state.sh        # SessionStart: inject project state
-.claude/hooks/pre-compact-handover.sh # PreCompact: emergency state capture
-docs/handover/                         # Session handover directory (empty)
-CLAUDE.local.md                        # Placeholder (gitignored)
+.claude/commands/hook-check.md         # /hook-check — verify all hooks present + wired
+.claude/references/_index.md           # Master reference index skeleton
+.claude/references/error-corrections/_index.md  # Error corrections index
+.claude/references/explorations/_index.md       # Exploration persistence index
+.claude/references/explorations/synthesis/.gitkeep
+docs/handover/.gitkeep                 # Session handover directory
+tests/reports/.gitkeep                 # JSON test output directory
 ```
 
 ### Layer 2: `getWorkflowFiles(workflow)`
 
-Files specific to the selected workflow preset. See `workflow-presets.md` for the full preset definitions.
+Files specific to the selected workflow preset. See `workflow-presets.md` for the full preset definitions. Hook scripts and `tests/reports/` are now in the platform layer; workflow layer provides only docs and slash commands.
+
+**Implemented in:** `flowforge-mobile/lib/templates/workflows/{research,feature,greenfield,learning}.ts`
 
 **Research workflow** adds:
 ```
 .claude/commands/research-setup.md     # /research-setup
-.claude/commands/session-handover.md   # /session-handover
 .claude/commands/tdd-plan.md           # /tdd-plan
-.claude/hooks/stop-test-loop.sh        # Stop: TDD feedback loop
-.claude/hooks/post-typecheck.sh        # PostToolUse: type errors after edits
-docs/research-notes/                   # Input from Obsidian/mobile
-docs/research-output/                  # Output from Claude.ai Research
-docs/implementation-plan.md            # Living TDD plan (placeholder)
+docs/research-notes/.gitkeep           # Input from Obsidian/mobile
+docs/research-output/.gitkeep          # Output from Claude.ai Research
 docs/stack-recommendation.md           # From /research-setup (placeholder)
-tests/reports/                         # JSON + log test output directory
+docs/implementation-plan.md            # Living TDD plan (placeholder)
 ```
 
 **Feature workflow** adds:
 ```
 .claude/commands/scope.md              # /scope
-.claude/commands/session-handover.md   # /session-handover
-.claude/hooks/stop-test-loop.sh        # Stop: TDD feedback loop
-.claude/hooks/post-typecheck.sh        # PostToolUse: type errors after edits
+.claude/commands/implementation-plan.md # /implementation-plan
+.claude/commands/pre-review.md         # /pre-review
 docs/spec.md                           # Feature specification (placeholder)
-tests/reports/
+docs/implementation-plan.md            # Implementation approach (placeholder)
 ```
 
 **Greenfield workflow** adds:
 ```
 .claude/commands/architect.md          # /architect
-.claude/commands/session-handover.md   # /session-handover
-.claude/commands/tdd-plan.md           # /tdd-plan
-.claude/hooks/stop-test-loop.sh        # Stop: TDD feedback loop
-.claude/hooks/post-typecheck.sh        # PostToolUse: type errors after edits
+.claude/commands/build-plan.md         # /build-plan
+.claude/commands/deploy-check.md       # /deploy-check
 docs/brief.md                          # Project brief (placeholder)
-docs/implementation-plan.md            # Living plan (placeholder)
-tests/reports/
+docs/architecture.md                   # System architecture (placeholder)
+docs/build-plan.md                     # Build sequence (placeholder)
 ```
 
 **Learning workflow** adds:
 ```
-.claude/commands/explain.md            # /explain
+.claude/commands/capture-learnings.md  # /capture-learnings
 docs/goal.md                           # Learning goal (placeholder)
-docs/explorations/                     # Exploration logs directory
+docs/learnings.md                      # Captured insights (placeholder)
+docs/experiments/.gitkeep              # Scratch space for experiments
 ```
 
-### Layer 3: `getStackFiles(stack)`
+### Layer 3: `getStackFiles(stack)` + `getDevcontainerFiles(stack)` + `buildSettings(workflow, stack)`
 
-Files specific to the selected tech stack. Primarily contributes `README.md`, stack-specific `.gitignore` additions, and devcontainer features.
+Files specific to the selected tech stack. Contributes `README.md`, stack config files, stack-specific `.gitignore` additions, and CLAUDE.md sections. The devcontainer and settings are generated separately and added during composition.
+
+**Implemented in:** `flowforge-mobile/lib/templates/stacks/{typescript-react,typescript-node,python,rust,custom}.ts`, `devcontainer.ts`, `settings.ts`
 
 **TypeScript-React** adds:
 ```
 README.md                              # React project README template
-tsconfig.json                          # TypeScript config placeholder
-.devcontainer/devcontainer.json        # Node feature enabled
-.devcontainer/post-create.sh           # npm install, prettier, eslint
+tsconfig.json                          # TypeScript strict config (jsx: react-jsx)
+.devcontainer/devcontainer.json        # Node feature, VS Code eslint + prettier extensions
+.devcontainer/post-create.sh           # npm install -g typescript eslint
+.claude/settings.json                  # Hook wiring + env: jest, tsc, prettier, eslint
 ```
 
 **TypeScript-Node** adds:
 ```
 README.md                              # Node.js project README template
-tsconfig.json
-.devcontainer/devcontainer.json        # Node feature enabled
-.devcontainer/post-create.sh
+tsconfig.json                          # TypeScript strict config (module: NodeNext)
+.devcontainer/devcontainer.json        # Node feature, VS Code eslint + prettier extensions
+.devcontainer/post-create.sh           # npm install -g typescript eslint
+.claude/settings.json                  # Hook wiring + env: jest, tsc, prettier, eslint
 ```
 
 **Python** adds:
 ```
 README.md                              # Python project README template
-pyproject.toml                         # Project config placeholder
-tests/conftest.py                      # pytest JSON reporter config
-.devcontainer/devcontainer.json        # Python feature enabled
-.devcontainer/post-create.sh           # pip install, black, ruff, mypy
+pyproject.toml                         # Project config with [dev] deps
+tests/conftest.py                      # pytest configuration and markers
+.devcontainer/devcontainer.json        # Python 3.12 feature, VS Code python + ruff extensions
+.devcontainer/post-create.sh           # pip install black ruff mypy pytest pytest-json-report
+.claude/settings.json                  # Hook wiring + env: pytest, mypy, black, ruff
 ```
 
 **Rust** adds:
 ```
 README.md                              # Rust project README template
-Cargo.toml                            # Placeholder
-.devcontainer/devcontainer.json        # Rust feature enabled
-.devcontainer/post-create.sh           # cargo build, rustfmt, clippy
+Cargo.toml                            # Minimal crate config (edition 2021)
+.devcontainer/devcontainer.json        # Rust feature, VS Code rust-analyzer extension
+.devcontainer/post-create.sh           # rustup component add rustfmt clippy
+.claude/settings.json                  # Hook wiring + env: cargo test, cargo check, rustfmt, clippy
 ```
 
 **Custom** adds:
 ```
 README.md                              # Generic README template
 .devcontainer/devcontainer.json        # Universal base image only
-.devcontainer/post-create.sh           # Minimal setup
+.devcontainer/post-create.sh           # Minimal setup (chmod hooks)
+.claude/settings.json                  # Platform hooks only, no env vars
 ```
 
 ### File Deduplication
@@ -375,22 +383,15 @@ The `order: 0` special case allows the project header to render without a `##` p
 
 ---
 
-## 5. `.claude/settings.json` Merge
+## 5. `.claude/settings.json` Generation
 
-The `.claude/settings.json` file wires hooks to CC lifecycle events. Different workflows require different hook configurations because not every workflow uses the TDD test loop or typecheck gating.
+**Implemented in:** `flowforge-mobile/lib/templates/settings.ts`
 
-### Merge Strategy
+The `buildSettings(workflow, stack)` function generates `.claude/settings.json`, which wires hooks to CC lifecycle events and sets per-stack environment variables. Different workflows require different hook configurations because not every workflow uses the TDD test loop or typecheck gating.
 
-Platform hooks (block-test-execution, protect-files, session-state, pre-compact-handover) are always included. Workflow hooks (stop-test-loop, post-typecheck) are included only when the workflow involves a TDD phase.
+### Generation Strategy
 
-```typescript
-function buildSettings(workflow: WorkflowPreset): object {
-  const settings = getPlatformSettings();        // Always: PreToolUse, SessionStart, PreCompact
-  const workflowSettings = getWorkflowSettings(workflow); // Conditional: Stop, PostToolUse
-
-  return mergeSettings(settings, workflowSettings);
-}
-```
+Platform hooks (block-test-execution, protect-files, auto-format, session-state, pre-compact-handover) are always included. TDD hooks (stop-test-loop, post-typecheck, auto-deps, auto-remap, post-explore-reminder) are included only when the workflow is research, feature, or greenfield (i.e., not learning). Stack-specific environment variables (`TEST_RUNNER_CMD`, `FORMAT_CMD`, `TYPE_CHECK_CMD`, `LINT_CMD`, `TEST_REPORT_FORMAT`) are included only when both TDD is enabled and the stack is not custom.
 
 ### Example: Research + Python
 
@@ -565,7 +566,9 @@ Note the absence of `Stop` (no test loop), the absence of `post-typecheck.sh` (n
 
 ## 6. `.devcontainer/` Composition
 
-The devcontainer configuration ensures CC web (and any remote container environment) can run the hook scripts. Without it, hook scripts fail because tools like `pytest`, `ruff`, `black`, `tsc`, `mypy` are not installed in the base container.
+**Implemented in:** `flowforge-mobile/lib/templates/devcontainer.ts`
+
+The `getDevcontainerFiles(stack, name)` function generates `devcontainer.json` and `post-create.sh`. The devcontainer configuration ensures CC web (and any remote container environment) can run the hook scripts. Without it, hook scripts fail because tools like `pytest`, `ruff`, `black`, `tsc`, `mypy` are not installed in the base container.
 
 ### Base Image
 
@@ -1061,5 +1064,7 @@ Carried forward from the research document (section 15) plus new questions speci
 
 - **Platform-level architecture** (hooks, automation, memory layers, token conservation): see `platform-architecture.md`
 - **Workflow preset definitions** (phase sequences, slash commands per workflow, workflow-specific rules): see `workflow-presets.md`
-- **Research document** (full system design with implementation details): see `research-workflow-system-design-v2.md` at the repository root
-- **Current MVP implementation** (existing template functions, GitHub API integration, auth flow): see `flowforge-mobile/lib/github.ts` and `flowforge-mobile/lib/types.ts`
+- **Research document** (full system design with implementation details): see `archive/research-workflow-system-design-v2.md`
+- **Template implementation**: `flowforge-mobile/lib/templates/` — `compose.ts` (orchestrator), `platform.ts` (hooks + universal files), `settings.ts` (settings.json), `devcontainer.ts` (devcontainer), `claude-md.ts` (CLAUDE.md assembly), `workflows/` (4 presets), `stacks/` (5 configs)
+- **Types**: `flowforge-mobile/lib/types.ts` — `WorkflowPreset`, `StackPreset`, `FileToCreate`, etc.
+- **GitHub API integration**: `flowforge-mobile/lib/github.ts` — `createRepository()`, `deleteRepository()`, `isValidRepoName()`

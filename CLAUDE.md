@@ -30,7 +30,7 @@ npm run deploy         # Deploy to production
 
 **Auth flow:** Mobile app initiates GitHub OAuth via expo-auth-session → receives auth code → sends to `flowforge-api/api/auth/token.ts` → backend exchanges code for access token using client secret → token stored in expo-secure-store.
 
-**Repo creation flow (`lib/github.ts`):** Creates empty repo → generates template files (CLAUDE.md, README.md, .gitignore) → creates git blobs → creates tree → creates commit → creates main branch → sets default branch. On failure, `deleteRepository()` provides cleanup.
+**Repo creation flow (`lib/github.ts`):** Creates empty repo → generates template files via `composeTemplate()` → creates git blobs → creates tree → creates commit → creates main branch → sets default branch. On failure, `deleteRepository()` provides cleanup.
 
 **State:** Single Zustand store (`stores/store.ts`) manages auth state, user info, and last created repo.
 
@@ -38,7 +38,14 @@ npm run deploy         # Deploy to production
 
 **Styling:** NativeWind (Tailwind for RN) with dark theme. Custom colors defined in `tailwind.config.js` — GitHub-inspired palette (primary=#238636, background=#0a0a0a).
 
-**Templates:** Two templates in `lib/github.ts`: `getWebAppTemplate()` and `getCliToolTemplate()`. Each generates CLAUDE.md, README.md, and .gitignore content.
+**Template composition system (`lib/templates/`):** Three-layer composition: platform + workflow + stack → fully scaffolded CC environment. Orchestrated by `compose.ts`:
+
+- **`platform.ts`** — Universal files: 10 hook scripts (`.claude/hooks/`), slash commands, reference library skeleton, `tests/reports/` directory
+- **`settings.ts`** — `buildSettings(workflow, stack)` generates `.claude/settings.json` with hook wiring and per-stack env vars (`TEST_RUNNER_CMD`, `FORMAT_CMD`, `TYPE_CHECK_CMD`, `LINT_CMD`). TDD hooks (stop-test-loop, typecheck, auto-deps, auto-remap) enabled for research/feature/greenfield, disabled for learning.
+- **`devcontainer.ts`** — `getDevcontainerFiles(stack, name)` generates `.devcontainer/` with per-stack features (node, python, rust) and post-create tooling
+- **`claude-md.ts`** — Section-based CLAUDE.md assembly (sorted by `order`, sources: platform/workflow/stack)
+- **`workflows/`** — 4 presets (research, feature, greenfield, learning): phase-specific docs, slash commands, CLAUDE.md sections
+- **`stacks/`** — 5 configs (typescript-react, typescript-node, python, rust, custom): README, stack config files (tsconfig.json, pyproject.toml, Cargo.toml), .gitignore additions, CLAUDE.md sections
 
 ## Environment Variables
 
