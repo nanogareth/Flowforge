@@ -34,3 +34,10 @@ web-build/
 
 # Testing
 coverage/
+tests/reports/*.json
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Archive
+/archive/
