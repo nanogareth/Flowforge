@@ -1,6 +1,6 @@
-import { Stack, Redirect } from 'expo-router';
-import { useStore } from '../../stores/store';
-import { View, ActivityIndicator } from 'react-native';
+import { Stack, Redirect } from "expo-router";
+import { useStore } from "../../stores/store";
+import { View, ActivityIndicator } from "react-native";
 
 export default function AppLayout() {
   const { token, isLoading } = useStore();
@@ -23,11 +23,12 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#0a0a0a' },
-        animation: 'slide_from_right',
+        contentStyle: { backgroundColor: "#0a0a0a" },
+        animation: "slide_from_right",
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="pick" />
       <Stack.Screen name="create" />
       <Stack.Screen name="create/[type]" />
       <Stack.Screen name="success" />

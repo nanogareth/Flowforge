@@ -19,6 +19,7 @@ import * as Sentry from '@sentry/react-native';
 import { createRepository, deleteRepository } from '../../../lib/github';
 import type { WorkflowPreset, StackPreset } from '../../../lib/types';
 import { useStore } from '../../../stores/store';
+import CopyableError from '../../../components/CopyableError';
 
 const schema = z.object({
   name: z
@@ -142,8 +143,7 @@ export default function CreateForm() {
 
           {/* Error Message */}
           {error && (
-            <View className="bg-error-bg p-4 rounded-lg mb-6">
-              <Text className="text-error mb-2">{error}</Text>
+            <CopyableError message={error}>
               {partialRepo && (
                 <Pressable
                   onPress={handleDeletePartialRepo}
@@ -155,7 +155,7 @@ export default function CreateForm() {
                   </Text>
                 </Pressable>
               )}
-            </View>
+            </CopyableError>
           )}
 
           {/* Form */}

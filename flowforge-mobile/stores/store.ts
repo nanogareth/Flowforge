@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { Octokit } from '@octokit/rest';
-import { getToken, saveToken, clearToken } from '../lib/auth';
-import type { CreatedRepo } from '../lib/types';
+import { create } from "zustand";
+import { Octokit } from "@octokit/rest";
+import { getToken, saveToken, clearToken } from "../lib/auth";
+import type { CreatedRepo } from "../lib/types";
 
 interface User {
   login: string;
@@ -19,6 +19,10 @@ interface AppState {
   // Last created repo (for success screen)
   lastCreatedRepo: CreatedRepo | null;
 
+  // Claude Code integration state
+  claudeCodeEnabled: boolean;
+  claudeCodeError: string | null;
+
   // Recent repos (foundation for future dashboard)
   recentRepos: CreatedRepo[];
 
@@ -29,6 +33,8 @@ interface AppState {
   clearError: () => void;
   setLastCreatedRepo: (repo: CreatedRepo | null) => void;
   addRecentRepo: (repo: CreatedRepo) => void;
+  setClaudeCodeState: (enabled: boolean, error: string | null) => void;
+  resetCreationState: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -37,6 +43,8 @@ export const useStore = create<AppState>((set, get) => ({
   isLoading: true,
   error: null,
   lastCreatedRepo: null,
+  claudeCodeEnabled: false,
+  claudeCodeError: null,
   recentRepos: [],
 
   initialize: async () => {
@@ -46,7 +54,7 @@ export const useStore = create<AppState>((set, get) => ({
         await get().login(token);
       }
     } catch (error) {
-      console.error('Init error:', error);
+      console.error("Init error:", error);
     } finally {
       set({ isLoading: false });
     }
@@ -70,14 +78,21 @@ export const useStore = create<AppState>((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      set({ error: 'Failed to authenticate', isLoading: false });
+      set({ error: "Failed to authenticate", isLoading: false });
       throw error;
     }
   },
 
   logout: async () => {
     await clearToken();
-    set({ token: null, user: null, lastCreatedRepo: null, recentRepos: [] });
+    set({
+      token: null,
+      user: null,
+      lastCreatedRepo: null,
+      claudeCodeEnabled: false,
+      claudeCodeError: null,
+      recentRepos: [],
+    });
   },
 
   clearError: () => set({ error: null }),
@@ -91,6 +106,19 @@ export const useStore = create<AppState>((set, get) => ({
 
   addRecentRepo: (repo) =>
     set((state) => ({
-      recentRepos: [repo, ...state.recentRepos.filter((r) => r.full_name !== repo.full_name)],
+      recentRepos: [
+        repo,
+        ...state.recentRepos.filter((r) => r.full_name !== repo.full_name),
+      ],
     })),
+
+  setClaudeCodeState: (enabled, error) =>
+    set({ claudeCodeEnabled: enabled, claudeCodeError: error }),
+
+  resetCreationState: () =>
+    set({
+      lastCreatedRepo: null,
+      claudeCodeEnabled: false,
+      claudeCodeError: null,
+    }),
 }));

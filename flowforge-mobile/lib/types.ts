@@ -1,5 +1,26 @@
-export type WorkflowPreset = 'research' | 'feature' | 'greenfield' | 'learning';
-export type StackPreset = 'typescript-react' | 'typescript-node' | 'python' | 'rust' | 'custom';
+export type WorkflowPreset = "research" | "feature" | "greenfield" | "learning";
+export type StackPreset =
+  | "typescript-react"
+  | "typescript-node"
+  | "python"
+  | "rust"
+  | "custom";
+
+export interface PickedFile {
+  uri: string;
+  name: string;
+  size: number;
+  content: string;
+}
+
+export interface FrontmatterResult {
+  workflow: WorkflowPreset;
+  stack: StackPreset;
+  isPrivate: boolean;
+  description: string;
+  body: string;
+  rawContent: string;
+}
 
 export interface CreateRepoOptions {
   name: string;
@@ -7,6 +28,7 @@ export interface CreateRepoOptions {
   isPrivate: boolean;
   workflow: WorkflowPreset;
   stack: StackPreset;
+  contextFile?: { filename: string; content: string };
 }
 
 export interface CreateRepoResult {
@@ -17,6 +39,7 @@ export interface CreateRepoResult {
 }
 
 export interface CreatedRepo {
+  id?: number;
   full_name: string;
   html_url: string;
   clone_url: string;

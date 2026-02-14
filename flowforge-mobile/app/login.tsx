@@ -1,34 +1,46 @@
-import { useEffect, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import * as Sentry from '@sentry/react-native';
-import { useGitHubAuth, exchangeCodeForToken } from '../lib/auth';
-import { useStore } from '../stores/store';
+import { useState, useEffect, useCallback } from "react";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
+import * as Sentry from "@sentry/react-native";
+import { useGitHubAuth, exchangeCodeForToken } from "../lib/auth";
+import { useStore } from "../stores/store";
 
 export default function Login() {
   const router = useRouter();
   const { request, response, promptAsync, redirectUri } = useGitHubAuth();
   const { login, isLoading, error, clearError } = useStore();
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleCodeExchange = useCallback(
-    async (code: string) => {
+    async (code: string, codeVerifier?: string) => {
       try {
-        const token = await exchangeCodeForToken(code, redirectUri);
+        setAuthError(null);
+        const token = await exchangeCodeForToken(
+          code,
+          redirectUri,
+          codeVerifier,
+        );
         await login(token);
-        router.replace('/(app)');
+        router.replace("/(app)");
       } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Authentication failed";
+        setAuthError(message);
         Sentry.captureException(err);
       }
     },
-    [login, redirectUri, router]
+    [login, redirectUri, router],
   );
 
   useEffect(() => {
-    if (response?.type === 'success') {
+    if (response?.type === "success") {
       const { code } = response.params;
-      handleCodeExchange(code);
-    } else if (response?.type === 'error') {
-      Sentry.captureMessage('OAuth error', {
+      handleCodeExchange(code, request?.codeVerifier);
+    } else if (response?.type === "error") {
+      setAuthError(response.error?.message || "OAuth authorization failed");
+      Sentry.captureMessage("OAuth error", {
         extra: { error: response.error },
       });
     }
@@ -50,10 +62,20 @@ export default function Login() {
       </View>
 
       {/* Error Message */}
-      {error && (
-        <View className="bg-error-bg p-4 rounded-lg mb-6 w-full max-w-sm">
-          <Text className="text-error text-center">{error}</Text>
-        </View>
+      {(error || authError) && (
+        <Pressable
+          onPress={async () => {
+            await Clipboard.setStringAsync(authError || error || "");
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="bg-error-bg p-4 rounded-lg mb-6 w-full max-w-sm"
+        >
+          <Text className="text-error text-center">{authError || error}</Text>
+          <Text className="text-gray-500 text-xs text-center mt-2">
+            {copied ? "Copied!" : "Tap to copy"}
+          </Text>
+        </Pressable>
       )}
 
       {/* Login Button */}
@@ -61,7 +83,7 @@ export default function Login() {
         onPress={handleLogin}
         disabled={!request || isLoading}
         className={`bg-primary px-8 py-4 rounded-lg ${
-          !request || isLoading ? 'opacity-50' : 'active:bg-primary-hover'
+          !request || isLoading ? "opacity-50" : "active:bg-primary-hover"
         }`}
       >
         {isLoading ? (
@@ -77,6 +99,25 @@ export default function Login() {
       <Text className="text-gray-500 text-sm mt-8 text-center">
         We only request permissions to create repositories
       </Text>
+
+      {/* Dev: show redirect URI */}
+      {__DEV__ && redirectUri && (
+        <Pressable
+          onPress={async () => {
+            await Clipboard.setStringAsync(redirectUri);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="mt-4 p-3 rounded-lg border border-border"
+        >
+          <Text className="text-gray-500 text-xs text-center" selectable>
+            {redirectUri}
+          </Text>
+          <Text className="text-gray-600 text-xs text-center mt-1">
+            {copied ? "Copied!" : "Tap to copy redirect URI"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }

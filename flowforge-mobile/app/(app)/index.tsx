@@ -1,7 +1,7 @@
-import { View, Text, Pressable, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useStore } from '../../stores/store';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, Pressable, Image } from "react-native";
+import { useRouter } from "expo-router";
+import { useStore } from "../../stores/store";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Home() {
   const router = useRouter();
@@ -9,7 +9,7 @@ export default function Home() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/login');
+    router.replace("/login");
   };
 
   return (
@@ -34,31 +34,44 @@ export default function Home() {
         </View>
 
         {/* Main Content */}
-        <View className="flex-1 justify-center items-center">
+        <View className="flex-1 justify-center gap-4">
           <Text className="text-white text-2xl font-bold mb-2 text-center">
-            Create a new project
+            Start a new project
           </Text>
-          <Text className="text-gray-400 text-center mb-8 px-4">
-            Set up a GitHub repository with CLAUDE.md and starter files
+          <Text className="text-gray-400 text-center mb-4 px-4">
+            Create a GitHub repo pre-configured for Claude Code
           </Text>
 
-          {/* New Project Button */}
+          {/* Primary: Import from Obsidian */}
           <Pressable
-            onPress={() => router.push('/(app)/create')}
-            className="bg-primary px-12 py-5 rounded-xl active:bg-primary-hover"
+            onPress={() => router.push("/(app)/pick")}
+            className="bg-primary p-6 rounded-xl active:bg-primary-hover"
           >
-            <Text className="text-white text-xl font-semibold">
-              + New Project
+            <Text className="text-white text-xl font-semibold mb-1">
+              Import from Obsidian
+            </Text>
+            <Text className="text-green-200 text-sm">
+              Pick a markdown file to auto-configure your project
+            </Text>
+          </Pressable>
+
+          {/* Secondary: Create Manually */}
+          <Pressable
+            onPress={() => router.push("/(app)/create")}
+            className="bg-surface p-6 rounded-xl border border-border active:border-primary"
+          >
+            <Text className="text-white text-xl font-semibold mb-1">
+              Create Manually
+            </Text>
+            <Text className="text-gray-400 text-sm">
+              Choose a template and configure from scratch
             </Text>
           </Pressable>
         </View>
 
         {/* Sign Out */}
         <View className="pb-4">
-          <Pressable
-            onPress={handleLogout}
-            className="py-3 items-center"
-          >
+          <Pressable onPress={handleLogout} className="py-3 items-center">
             <Text className="text-gray-500">Sign out</Text>
           </Pressable>
         </View>
