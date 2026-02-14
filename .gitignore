@@ -41,3 +41,9 @@ tests/reports/*.json
 
 # Archive
 /archive/
+
+# Scratch / command output logs
+WorkingTogether.txt
+npx eslint.txt
+yarn warnings.txt
+package-lock.json
