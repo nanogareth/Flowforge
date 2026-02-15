@@ -86,8 +86,8 @@
   - **Keywords**: CreateRepoOptions, CreateRepoResult, CreatedRepo, FileToCreate, FrontmatterResult, PickedFile, StackPreset, WorkflowPreset, lib, types
 - `codebase.md#flowforge-mobilestoresstorets` — User
   - **Keywords**: AppState, User, store, stores, useStore
-- `codebase.md#flowforge-servertestsroutesclonetestts` — createTestApp()
-  - **Keywords**: clone.test, createTestApp, postClone, routes
+- `codebase.md#flowforge-servertestsroutesclonetestts` — getHandler()
+  - **Keywords**: clone.test, createMockReq, createMockRes, getHandler, routes, setupMockProcess
 - `codebase.md#flowforge-serverteststerminalsession-managertestts` — createMockPty()
   - **Keywords**: createMockPty, createMockWs, session-manager.test, terminal
 - `codebase.md#flowforge-serversrcauthjwtts` — getSecret()
