@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import * as Sentry from '@sentry/react-native';
 import { createRepository, deleteRepository } from '../../../lib/github';
+import { setupClaudeCode } from '../../../lib/claude-code-app';
 import type { WorkflowPreset, StackPreset } from '../../../lib/types';
 import { useStore } from '../../../stores/store';
 import CopyableError from '../../../components/CopyableError';
@@ -51,7 +52,7 @@ const workflowTitles: Record<WorkflowPreset, string> = {
 export default function CreateForm() {
   const router = useRouter();
   const { type } = useLocalSearchParams<{ type: string }>();
-  const { token, setLastCreatedRepo } = useStore();
+  const { token, setLastCreatedRepo, setClaudeCodeState } = useStore();
 
   const { workflow, stack } = parseTypeParam(type || 'greenfield--custom');
   const templateTitle = workflowTitles[workflow] || 'Project';
@@ -91,6 +92,11 @@ export default function CreateForm() {
 
       if (result.success && result.repo) {
         setLastCreatedRepo(result.repo);
+
+        // Configure Claude Code access
+        const ccResult = setupClaudeCode();
+        setClaudeCodeState(ccResult.configureUrl);
+
         router.replace('/(app)/success');
       } else {
         setError(result.error || 'Failed to create repository');

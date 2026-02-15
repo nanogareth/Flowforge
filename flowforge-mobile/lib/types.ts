@@ -53,17 +53,3 @@ export interface FileToCreate {
   path: string;
   content: string;
 }
-
-export interface WorkflowMeta {
-  id: WorkflowPreset;
-  title: string;
-  description: string;
-  icon: string;
-}
-
-export interface StackMeta {
-  id: StackPreset;
-  title: string;
-  description: string;
-  icon: string;
-}

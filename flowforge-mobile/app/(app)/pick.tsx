@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -17,12 +17,18 @@ import CopyableError from "../../components/CopyableError";
 import { parseFrontmatter, filenameToRepoName } from "../../lib/frontmatter";
 import { createRepository, isValidRepoName } from "../../lib/github";
 import { setupClaudeCode } from "../../lib/claude-code-app";
-import type { FrontmatterResult } from "../../lib/types";
+import type { FrontmatterResult, WorkflowPreset } from "../../lib/types";
 
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
 
+const workflowOptions: { id: WorkflowPreset; label: string }[] = [
+  { id: "research", label: "Research" },
+  { id: "feature", label: "Feature" },
+  { id: "greenfield", label: "New Project" },
+  { id: "learning", label: "Learning" },
+];
+
 type PickState =
-  | { phase: "idle" }
   | {
       phase: "picked";
       filename: string;
@@ -36,10 +42,12 @@ export default function PickScreen() {
   const router = useRouter();
   const { token, setLastCreatedRepo, setClaudeCodeState } = useStore();
 
-  const [state, setState] = useState<PickState>({ phase: "idle" });
+  const [state, setState] = useState<PickState | null>(null);
   const [repoName, setRepoName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(true);
+  const [workflow, setWorkflow] = useState<WorkflowPreset>("research");
+  const launched = useRef(false);
 
   const handlePickFile = async () => {
     try {
@@ -48,7 +56,13 @@ export default function PickScreen() {
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) return;
+      if (result.canceled) {
+        // If no file was picked yet, go back
+        if (!state || state.phase === "error") {
+          router.back();
+        }
+        return;
+      }
 
       const asset = result.assets[0];
       if (!asset) return;
@@ -81,6 +95,7 @@ export default function PickScreen() {
       setRepoName(derivedName);
       setDescription(frontmatter.description);
       setIsPrivate(frontmatter.isPrivate);
+      setWorkflow(frontmatter.workflow);
 
       setState({
         phase: "picked",
@@ -96,8 +111,16 @@ export default function PickScreen() {
     }
   };
 
+  // Auto-launch file picker on mount
+  useEffect(() => {
+    if (!launched.current) {
+      launched.current = true;
+      handlePickFile();
+    }
+  }, []);
+
   const handleCreate = async () => {
-    if (!token || state.phase !== "picked") return;
+    if (!token || !state || state.phase !== "picked") return;
 
     setState({ phase: "creating", status: "Creating repository..." });
 
@@ -105,7 +128,7 @@ export default function PickScreen() {
       name: repoName,
       description: description || undefined,
       isPrivate,
-      workflow: state.frontmatter.workflow,
+      workflow,
       stack: state.frontmatter.stack,
       contextFile: { filename: state.filename, content: state.content },
     });
@@ -121,11 +144,8 @@ export default function PickScreen() {
     setLastCreatedRepo(result.repo);
 
     // Enable Claude Code (non-blocking)
-    if (result.repo.id) {
-      setState({ phase: "creating", status: "Enabling Claude Code..." });
-      const ccResult = await setupClaudeCode(token, result.repo.id);
-      setClaudeCodeState(ccResult.enabled ?? false, ccResult.error ?? null);
-    }
+    const ccResult = setupClaudeCode();
+    setClaudeCodeState(ccResult.configureUrl);
 
     router.replace("/(app)/success");
   };
@@ -151,25 +171,8 @@ export default function PickScreen() {
           </Text>
         </View>
 
-        {/* Idle: Pick file button */}
-        {state.phase === "idle" && (
-          <View className="flex-1 justify-center items-center py-16">
-            <Pressable
-              onPress={handlePickFile}
-              className="bg-primary px-12 py-6 rounded-xl active:bg-primary-hover"
-            >
-              <Text className="text-white text-xl font-semibold text-center">
-                Pick a Markdown File
-              </Text>
-            </Pressable>
-            <Text className="text-gray-500 mt-4 text-center px-8">
-              Select a .md file from your Obsidian vault or file system
-            </Text>
-          </View>
-        )}
-
         {/* Picked: Review + edit */}
-        {state.phase === "picked" && (
+        {state?.phase === "picked" && (
           <View className="gap-5">
             {/* File info */}
             <View className="bg-surface border border-border rounded-lg p-4">
@@ -177,20 +180,40 @@ export default function PickScreen() {
               <Text className="text-white font-medium">{state.filename}</Text>
             </View>
 
-            {/* Inferred settings */}
-            <View className="flex-row gap-3">
-              <View className="flex-1 bg-surface border border-border rounded-lg p-3">
-                <Text className="text-gray-400 text-xs mb-1">Workflow</Text>
-                <Text className="text-white font-medium capitalize">
-                  {state.frontmatter.workflow}
-                </Text>
+            {/* Workflow selector */}
+            <View>
+              <Text className="text-white text-base font-medium mb-2">
+                Workflow
+              </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {workflowOptions.map((opt) => (
+                  <Pressable
+                    key={opt.id}
+                    onPress={() => setWorkflow(opt.id)}
+                    className={`px-4 py-2 rounded-lg border ${
+                      workflow === opt.id
+                        ? "bg-primary border-primary"
+                        : "bg-surface border-border"
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm font-medium ${
+                        workflow === opt.id ? "text-white" : "text-gray-400"
+                      }`}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-              <View className="flex-1 bg-surface border border-border rounded-lg p-3">
-                <Text className="text-gray-400 text-xs mb-1">Stack</Text>
-                <Text className="text-white font-medium">
-                  {state.frontmatter.stack}
-                </Text>
-              </View>
+            </View>
+
+            {/* Stack (read-only, inferred from frontmatter) */}
+            <View className="bg-surface border border-border rounded-lg p-3">
+              <Text className="text-gray-400 text-xs mb-1">Stack</Text>
+              <Text className="text-white font-medium">
+                {state.frontmatter.stack}
+              </Text>
             </View>
 
             {/* Repo name */}
@@ -258,7 +281,7 @@ export default function PickScreen() {
         )}
 
         {/* Creating: spinner */}
-        {state.phase === "creating" && (
+        {state?.phase === "creating" && (
           <View className="flex-1 justify-center items-center py-16">
             <ActivityIndicator size="large" color="#238636" />
             <Text className="text-gray-400 mt-4">{state.status}</Text>
@@ -266,13 +289,10 @@ export default function PickScreen() {
         )}
 
         {/* Error */}
-        {state.phase === "error" && (
+        {state?.phase === "error" && (
           <View className="flex-1 justify-center items-center py-16">
             <CopyableError message={state.message} />
-            <Pressable
-              onPress={() => setState({ phase: "idle" })}
-              className="mt-6 py-3"
-            >
+            <Pressable onPress={handlePickFile} className="mt-6 py-3">
               <Text className="text-primary text-base">Try again</Text>
             </Pressable>
           </View>
