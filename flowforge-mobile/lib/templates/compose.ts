@@ -1,19 +1,27 @@
-import type { WorkflowPreset, StackPreset, FileToCreate } from '../types';
-import { assembleClaudeMd, type ClaudeMdSection } from './claude-md';
-import { getPlatformFiles, getPlatformClaudeMdSections, getPlatformGitignore } from './platform';
-import { buildSettings } from './settings';
-import { getDevcontainerFiles } from './devcontainer';
+import type { WorkflowPreset, StackPreset, FileToCreate } from "../types";
+import { assembleClaudeMd, type ClaudeMdSection } from "./claude-md";
+import {
+  getPlatformFiles,
+  getPlatformClaudeMdSections,
+  getPlatformGitignore,
+} from "./platform";
+import { buildSettings } from "./settings";
+import { getDevcontainerFiles } from "./devcontainer";
+import {
+  getGitHubActionFiles,
+  getGitHubIntegrationSection,
+} from "./github-action";
 
-import * as researchWorkflow from './workflows/research';
-import * as featureWorkflow from './workflows/feature';
-import * as greenfieldWorkflow from './workflows/greenfield';
-import * as learningWorkflow from './workflows/learning';
+import * as researchWorkflow from "./workflows/research";
+import * as featureWorkflow from "./workflows/feature";
+import * as greenfieldWorkflow from "./workflows/greenfield";
+import * as learningWorkflow from "./workflows/learning";
 
-import * as typescriptReactStack from './stacks/typescript-react';
-import * as typescriptNodeStack from './stacks/typescript-node';
-import * as pythonStack from './stacks/python';
-import * as rustStack from './stacks/rust';
-import * as customStack from './stacks/custom';
+import * as typescriptReactStack from "./stacks/typescript-react";
+import * as typescriptNodeStack from "./stacks/typescript-node";
+import * as pythonStack from "./stacks/python";
+import * as rustStack from "./stacks/rust";
+import * as customStack from "./stacks/custom";
 
 const workflowModules = {
   research: researchWorkflow,
@@ -23,8 +31,8 @@ const workflowModules = {
 } as const;
 
 const stackModules = {
-  'typescript-react': typescriptReactStack,
-  'typescript-node': typescriptNodeStack,
+  "typescript-react": typescriptReactStack,
+  "typescript-node": typescriptNodeStack,
   python: pythonStack,
   rust: rustStack,
   custom: customStack,
@@ -34,7 +42,7 @@ export function composeTemplate(
   workflow: WorkflowPreset,
   stack: StackPreset,
   name: string,
-  description?: string
+  description?: string,
 ): FileToCreate[] {
   const wMod = workflowModules[workflow];
   const sMod = stackModules[stack];
@@ -49,20 +57,22 @@ export function composeTemplate(
     ...getPlatformClaudeMdSections(),
     ...wMod.getWorkflowClaudeMdSections(),
     ...sMod.getStackClaudeMdSections(),
+    getGitHubIntegrationSection(workflow),
   ];
 
   // 3. Assemble CLAUDE.md
-  const claudeMdContent = assembleClaudeMd(name, description || '', sections);
+  const claudeMdContent = assembleClaudeMd(name, description || "", sections);
 
   // 4. Merge .gitignore (platform base + stack additions, deduplicated)
   const gitignoreContent = mergeGitignore(
     getPlatformGitignore(),
-    sMod.getStackGitignore()
+    sMod.getStackGitignore(),
   );
 
-  // 5. Build settings.json and devcontainer
+  // 5. Build settings.json, devcontainer, and GitHub Action
   const settingsContent = buildSettings(workflow, stack);
   const devcontainerFiles = getDevcontainerFiles(stack, name);
+  const githubActionFiles = getGitHubActionFiles(workflow);
 
   // 6. Combine all files
   const allFiles: FileToCreate[] = [
@@ -70,9 +80,10 @@ export function composeTemplate(
     ...workflowFiles,
     ...stackFiles,
     ...devcontainerFiles,
-    { path: 'CLAUDE.md', content: claudeMdContent },
-    { path: '.gitignore', content: gitignoreContent },
-    { path: '.claude/settings.json', content: settingsContent },
+    ...githubActionFiles,
+    { path: "CLAUDE.md", content: claudeMdContent },
+    { path: ".gitignore", content: gitignoreContent },
+    { path: ".claude/settings.json", content: settingsContent },
   ];
 
   // 7. Deduplicate by path (later sources win)
@@ -80,16 +91,21 @@ export function composeTemplate(
 }
 
 function mergeGitignore(platform: string, stack: string): string {
-  const platformLines = platform.split('\n');
-  const stackLines = stack.split('\n');
+  const platformLines = platform.split("\n");
+  const stackLines = stack.split("\n");
 
   const seen = new Set<string>();
   const result: string[] = [];
 
-  for (const line of [...platformLines, '', '# Stack-specific', ...stackLines]) {
+  for (const line of [
+    ...platformLines,
+    "",
+    "# Stack-specific",
+    ...stackLines,
+  ]) {
     const trimmed = line.trim();
     // Always allow comments and blank lines, but deduplicate actual patterns
-    if (trimmed === '' || trimmed.startsWith('#')) {
+    if (trimmed === "" || trimmed.startsWith("#")) {
       result.push(line);
     } else if (!seen.has(trimmed)) {
       seen.add(trimmed);
@@ -101,7 +117,7 @@ function mergeGitignore(platform: string, stack: string): string {
   const cleaned: string[] = [];
   let blankCount = 0;
   for (const line of result) {
-    if (line.trim() === '') {
+    if (line.trim() === "") {
       blankCount++;
       if (blankCount <= 2) cleaned.push(line);
     } else {
@@ -110,7 +126,7 @@ function mergeGitignore(platform: string, stack: string): string {
     }
   }
 
-  return cleaned.join('\n').trimEnd() + '\n';
+  return cleaned.join("\n").trimEnd() + "\n";
 }
 
 function deduplicateFiles(files: FileToCreate[]): FileToCreate[] {

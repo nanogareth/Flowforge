@@ -19,7 +19,7 @@ export function useGitHubAuth() {
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: GITHUB_CLIENT_ID,
-      scopes: ["repo", "read:user"],
+      scopes: ["repo", "read:user", "workflow"],
       redirectUri,
     },
     discovery,
