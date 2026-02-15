@@ -2,8 +2,8 @@
 
 > FlowForge's role as project scaffolder and command center, plus the template composition system.
 
-**Status:** v3.1 — composition system, settings, devcontainer, and hook scripts implemented
-**Date:** 2026-02-13
+**Status:** v3.2 — Obsidian import flow, Claude Code GitHub App integration, dual-flow home screen
+**Date:** 2026-02-15
 
 ---
 
@@ -11,12 +11,12 @@
 
 FlowForge is a React Native (Expo) mobile app that creates GitHub repositories pre-configured with CLAUDE.md templates and a full Claude Code (CC) automation layer.
 
-**Current state:** FlowForge scaffolds fully operational CC environments via a three-layer template composition system (`flowforge-mobile/lib/templates/`). The user selects a workflow preset and stack, fills in a name and description, and FlowForge creates a GitHub repo with 30+ files via the Octokit Git Data API (blob → tree → commit → ref). The repo ships with hook scripts, `.claude/settings.json` (hook wiring + env vars), `.devcontainer/`, slash commands, reference library skeleton, and a fully assembled `CLAUDE.md`. Any CC instance that clones the repo inherits the full automation layer.
+**Current state:** FlowForge scaffolds fully operational CC environments via a three-layer template composition system (`flowforge-mobile/lib/templates/`). The home screen offers two creation paths: **Import from Obsidian** (pick a markdown file, auto-configure workflow/stack from frontmatter) and **Create Manually** (choose from hardcoded templates). Both paths create a GitHub repo with 30+ files via the Octokit Git Data API (blob → tree → commit → ref). The repo ships with hook scripts, `.claude/settings.json` (hook wiring + env vars), `.devcontainer/`, slash commands, reference library skeleton, and a fully assembled `CLAUDE.md`. After repo creation, FlowForge attempts to enable the Claude Code GitHub App for the new repo (non-blocking). Any CC instance that clones the repo inherits the full automation layer.
 
 **Next:** FlowForge evolves into a project command center. Two remaining moves:
 
-1. Build the **workflow/stack selection UI** (section 8 below) — screens for choosing workflow, stack, and project details.
-2. Add a **project dashboard** (section 10 below) that reads project state from repos FlowForge has already created, turning the app into an ongoing control surface rather than a one-shot launcher.
+1. Build the **workflow/stack selection UI** for the manual create flow (section 10 below) — the Obsidian import flow already supports all workflows and stacks via frontmatter, but the manual flow still uses hardcoded templates (Web App = `greenfield--typescript-react`, CLI Tool = `greenfield--typescript-node`).
+2. Add a **project dashboard** (section 12 below) that reads project state from repos FlowForge has already created, turning the app into an ongoing control surface rather than a one-shot launcher.
 
 ---
 
@@ -26,25 +26,106 @@ The central architectural insight: the repository IS the CC operating environmen
 
 **What lives in git:**
 
-| Path | Purpose |
-|------|---------|
-| `CLAUDE.md` | Project instructions, `@`-imported references, workflow rules |
-| `.claude/settings.json` | Hook wiring, permissions, model preferences |
-| `.claude/hooks/` | Automation scripts (test loop, typecheck, format, protect) |
-| `.claude/commands/` | Custom slash commands (`/session-handover`, `/tdd-plan`, etc.) |
-| `.claude/scripts/` | Utility scripts (codebase mapper, test report formatter) |
-| `.claude/references/` | Progressive-disclosure reference library with `_index.md` |
-| `.devcontainer/` | Container spec for CC web / remote environments |
-| `docs/handover/` | Session state externalisation for context continuity |
-| `tests/reports/` | Structured JSON test output consumed by hooks |
+| Path                    | Purpose                                                        |
+| ----------------------- | -------------------------------------------------------------- |
+| `CLAUDE.md`             | Project instructions, `@`-imported references, workflow rules  |
+| `.claude/settings.json` | Hook wiring, permissions, model preferences                    |
+| `.claude/hooks/`        | Automation scripts (test loop, typecheck, format, protect)     |
+| `.claude/commands/`     | Custom slash commands (`/session-handover`, `/tdd-plan`, etc.) |
+| `.claude/scripts/`      | Utility scripts (codebase mapper, test report formatter)       |
+| `.claude/references/`   | Progressive-disclosure reference library with `_index.md`      |
+| `.devcontainer/`        | Container spec for CC web / remote environments                |
+| `docs/handover/`        | Session state externalisation for context continuity           |
+| `tests/reports/`        | Structured JSON test output consumed by hooks                  |
 
 **The contract:** Any CC instance -- local CLI, VS Code terminal, CC web in a remote container, or a future CC mobile client -- clones the repo, reads `CLAUDE.md`, loads `.claude/settings.json`, and gets identical behaviour. The hooks fire, the commands are available, the references are indexed. No "did you remember to configure X?" failure mode.
 
-This is what makes the mobile-to-web handoff (section 9) possible: FlowForge creates the repo on mobile, the user launches CC web pointed at it, and everything works because the repo carries its own operating environment.
+This is what makes the mobile-to-web handoff (section 11) possible: FlowForge creates the repo on mobile, the user launches CC web pointed at it, and everything works because the repo carries its own operating environment.
 
 ---
 
-## 3. Template Composition System
+## 3. Obsidian Import Flow
+
+FlowForge's primary creation path imports a markdown file (typically from an Obsidian vault) and auto-configures the project from optional YAML frontmatter. This flow is fully implemented in `flowforge-mobile/app/(app)/pick.tsx`.
+
+### End-to-End Flow
+
+1. **Pick file** — User taps "Import from Obsidian" on the home screen → navigates to `/pick` → uses `expo-document-picker` to select a `.md` file
+2. **Parse frontmatter** — `parseFrontmatter()` extracts workflow, stack, visibility, and description from YAML frontmatter block; `filenameToRepoName()` auto-derives a repo name from the filename
+3. **Review & edit** — User sees inferred settings (workflow, stack) and can edit the repo name, description, and private toggle before creating
+4. **Create repo** — `createRepository()` composes template files via `composeTemplate(workflow, stack, name, description)`, injects the original file as a context file, and pushes everything via the Git Data API
+5. **Enable Claude Code** — `setupClaudeCode()` attempts to add the repo to the user's Claude Code GitHub App installation (non-blocking)
+6. **Success screen** — Shows repo info, Claude Code status, clone command, and "Open Claude Code" button
+
+### Frontmatter Format
+
+Users can optionally include YAML frontmatter in their `.md` files to pre-configure project settings:
+
+```yaml
+---
+workflow: research
+stack: python
+private: true
+description: My project description
+---
+```
+
+All fields are optional. Defaults when omitted: `workflow: greenfield`, `stack: custom`, `private: true`, `description: ""`.
+
+**Implemented in:** `flowforge-mobile/lib/frontmatter.ts`
+
+- `parseFrontmatter(content)` — Extracts frontmatter fields, validates workflow/stack against known presets, returns a `FrontmatterResult` with the body text separated from metadata
+- `filenameToRepoName(filename)` — Converts a filename like `My Research Notes.md` to a valid GitHub repo name (`my-research-notes`): strips `.md`, lowercases, replaces spaces/underscores with hyphens, removes invalid chars, truncates to 100 chars
+
+### Context File Injection
+
+When a file is imported, `createRepository()` in `lib/github.ts` injects the original content into the repo:
+
+1. The file is stored at `context/{filename}` in the repo
+2. The generated `CLAUDE.md` gets a `## Project Context` section appended, referencing `@context/{filename}`
+3. CC can read this file for project background, requirements, or research notes
+
+### Types
+
+- `PickedFile` — `{ uri, name, size, content }` — represents a file selected via document picker
+- `FrontmatterResult` — `{ workflow, stack, isPrivate, description, body, rawContent }` — parsed frontmatter with separated body text
+
+### File Constraints
+
+- Only `.md` files are accepted (validated on file extension)
+- Maximum file size: 500KB
+
+---
+
+## 4. Claude Code GitHub App Integration
+
+After repo creation, FlowForge attempts to enable the Claude Code GitHub App for the new repository. This allows Claude Code to access the repo directly from `claude.ai/code`.
+
+**Implemented in:** `flowforge-mobile/lib/claude-code-app.ts`
+
+### Functions
+
+- `setupClaudeCode(token, repoId)` — Orchestrator. Finds the user's Claude Code app installation, then adds the repo to it. Returns a `ClaudeCodeSetupResult` with status and messaging.
+- `findClaudeCodeInstallation(token)` — Queries `octokit.apps.listInstallationsForAuthenticatedUser()` looking for the app with slug `"claude"`. Returns the installation ID or `null`.
+- `enableClaudeCodeForRepo(token, installationId, repoId)` — Calls `octokit.apps.addRepoToInstallationForAuthenticatedUser()` to grant the Claude Code app access to the specific repo.
+
+### Behaviour
+
+The setup is **non-blocking** — if it fails, the repo is still created successfully. The success screen shows one of three states:
+
+| State         | Display                                                                                 |
+| ------------- | --------------------------------------------------------------------------------------- |
+| Enabled       | Green badge: "Claude Code enabled for this repository"                                  |
+| Not installed | Card with link to `github.com/apps/claude`: "Tap to install the Claude Code GitHub App" |
+| Error         | Same card with install link as fallback                                                 |
+
+### Store Integration
+
+The Zustand store tracks Claude Code state via `claudeCodeEnabled` (boolean) and `claudeCodeError` (string | null), set by `setClaudeCodeState()` and cleared by `resetCreationState()`.
+
+---
+
+## 5. Template Composition System
 
 The current MVP uses monolithic template functions (`getWebAppTemplate`, `getCliToolTemplate`) that return hardcoded `FileToCreate[]` arrays. The v3 system replaces this with a three-layer composition pipeline where platform, workflow, and stack each contribute files that are merged into the final output.
 
@@ -113,6 +194,7 @@ Files specific to the selected workflow preset. See `workflow-presets.md` for th
 **Implemented in:** `flowforge-mobile/lib/templates/workflows/{research,feature,greenfield,learning}.ts`
 
 **Research workflow** adds:
+
 ```
 .claude/commands/research-setup.md     # /research-setup
 .claude/commands/tdd-plan.md           # /tdd-plan
@@ -123,6 +205,7 @@ docs/implementation-plan.md            # Living TDD plan (placeholder)
 ```
 
 **Feature workflow** adds:
+
 ```
 .claude/commands/scope.md              # /scope
 .claude/commands/implementation-plan.md # /implementation-plan
@@ -132,6 +215,7 @@ docs/implementation-plan.md            # Implementation approach (placeholder)
 ```
 
 **Greenfield workflow** adds:
+
 ```
 .claude/commands/architect.md          # /architect
 .claude/commands/build-plan.md         # /build-plan
@@ -142,6 +226,7 @@ docs/build-plan.md                     # Build sequence (placeholder)
 ```
 
 **Learning workflow** adds:
+
 ```
 .claude/commands/capture-learnings.md  # /capture-learnings
 docs/goal.md                           # Learning goal (placeholder)
@@ -156,6 +241,7 @@ Files specific to the selected tech stack. Contributes `README.md`, stack config
 **Implemented in:** `flowforge-mobile/lib/templates/stacks/{typescript-react,typescript-node,python,rust,custom}.ts`, `devcontainer.ts`, `settings.ts`
 
 **TypeScript-React** adds:
+
 ```
 README.md                              # React project README template
 tsconfig.json                          # TypeScript strict config (jsx: react-jsx)
@@ -165,6 +251,7 @@ tsconfig.json                          # TypeScript strict config (jsx: react-js
 ```
 
 **TypeScript-Node** adds:
+
 ```
 README.md                              # Node.js project README template
 tsconfig.json                          # TypeScript strict config (module: NodeNext)
@@ -174,6 +261,7 @@ tsconfig.json                          # TypeScript strict config (module: NodeN
 ```
 
 **Python** adds:
+
 ```
 README.md                              # Python project README template
 pyproject.toml                         # Project config with [dev] deps
@@ -184,6 +272,7 @@ tests/conftest.py                      # pytest configuration and markers
 ```
 
 **Rust** adds:
+
 ```
 README.md                              # Rust project README template
 Cargo.toml                            # Minimal crate config (edition 2021)
@@ -193,6 +282,7 @@ Cargo.toml                            # Minimal crate config (edition 2021)
 ```
 
 **Custom** adds:
+
 ```
 README.md                              # Generic README template
 .devcontainer/devcontainer.json        # Universal base image only
@@ -205,25 +295,50 @@ README.md                              # Generic README template
 Files are combined into a single `FileToCreate[]` with deduplication by path. When multiple layers produce a file at the same path (e.g., `README.md` from both workflow and stack, or `.devcontainer/post-create.sh` from platform and stack), the **later source wins**:
 
 ```typescript
-function composeTemplate(workflow: WorkflowPreset, stack: StackPreset, name: string, desc: string): FileToCreate[] {
-  const platformFiles = getPlatformFiles(name, desc);
-  const workflowFiles = getWorkflowFiles(workflow, name);
-  const stackFiles = getStackFiles(stack, name, desc);
+function composeTemplate(
+  workflow: WorkflowPreset,
+  stack: StackPreset,
+  name: string,
+  description?: string,
+): FileToCreate[] {
+  // 1. Gather files from all three layers
+  const platformFiles = getPlatformFiles();
+  const workflowFiles = wMod.getWorkflowFiles(name, description);
+  const stackFiles = sMod.getStackFiles(name);
 
-  const claudeMd = assembleCLAUDEmd(workflow, stack, name, desc);
-  const gitignore = mergeGitignore(stack);
+  // 2. Gather CLAUDE.md sections from all three layers
+  const sections: ClaudeMdSection[] = [
+    ...getPlatformClaudeMdSections(),
+    ...wMod.getWorkflowClaudeMdSections(),
+    ...sMod.getStackClaudeMdSections(),
+  ];
 
-  const allFiles = [...platformFiles, ...workflowFiles, ...stackFiles];
-  allFiles.push({ path: 'CLAUDE.md', content: claudeMd });
-  allFiles.push({ path: '.gitignore', content: gitignore });
+  // 3. Assemble CLAUDE.md
+  const claudeMdContent = assembleClaudeMd(name, description || "", sections);
 
-  // Deduplicate: later entries win on path conflicts
-  const fileMap = new Map<string, FileToCreate>();
-  for (const file of allFiles) {
-    fileMap.set(file.path, file);
-  }
+  // 4. Merge .gitignore (platform base + stack additions, deduplicated)
+  const gitignoreContent = mergeGitignore(
+    getPlatformGitignore(),
+    sMod.getStackGitignore(),
+  );
 
-  return Array.from(fileMap.values());
+  // 5. Build settings.json and devcontainer
+  const settingsContent = buildSettings(workflow, stack);
+  const devcontainerFiles = getDevcontainerFiles(stack, name);
+
+  // 6. Combine all files
+  const allFiles: FileToCreate[] = [
+    ...platformFiles,
+    ...workflowFiles,
+    ...stackFiles,
+    ...devcontainerFiles,
+    { path: "CLAUDE.md", content: claudeMdContent },
+    { path: ".gitignore", content: gitignoreContent },
+    { path: ".claude/settings.json", content: settingsContent },
+  ];
+
+  // 7. Deduplicate by path (later sources win)
+  return deduplicateFiles(allFiles);
 }
 ```
 
@@ -231,7 +346,7 @@ This means stack-specific `README.md` overrides the generic platform `README.md`
 
 ---
 
-## 4. CLAUDE.md Assembly
+## 6. CLAUDE.md Assembly
 
 The most important generated file is `CLAUDE.md`. Rather than concatenating strings from multiple templates (fragile, hard to maintain, difficult to reorder), the system uses **section-based composition**.
 
@@ -242,7 +357,7 @@ interface ClaudeMdSection {
   heading: string;
   content: string;
   order: number;
-  source: 'platform' | 'workflow' | 'stack';
+  source: "platform" | "workflow" | "stack";
 }
 ```
 
@@ -250,22 +365,22 @@ Each layer contributes an array of `ClaudeMdSection` objects. The sections are c
 
 ### Section Ordering
 
-| Order | Section | Source | Purpose |
-|-------|---------|--------|---------|
-| 0 | Project Header | platform | Project name, description, one-line summary |
-| 10 | Tech Stack | stack | Language, framework, key dependencies |
-| 20 | Getting Started | stack | Install and run commands for the stack |
-| 30 | Workflow | workflow | Phase descriptions, key commands, workflow rules |
-| 40 | Project Structure | stack | Directory layout with explanations |
-| 50 | Development Guidelines | platform | Coding conventions, test rules, commit style |
-| 60 | References | platform | `@`-imports to `_index.md`, error corrections index |
-| 70 | Handover & Session Rules | platform | Context thresholds, handover triggers, session hygiene |
+| Order | Section                  | Source   | Purpose                                                |
+| ----- | ------------------------ | -------- | ------------------------------------------------------ |
+| 0     | Project Header           | platform | Project name, description, one-line summary            |
+| 10    | Tech Stack               | stack    | Language, framework, key dependencies                  |
+| 20    | Getting Started          | stack    | Install and run commands for the stack                 |
+| 30    | Workflow                 | workflow | Phase descriptions, key commands, workflow rules       |
+| 40    | Project Structure        | stack    | Directory layout with explanations                     |
+| 50    | Development Guidelines   | platform | Coding conventions, test rules, commit style           |
+| 60    | References               | platform | `@`-imports to `_index.md`, error corrections index    |
+| 70    | Handover & Session Rules | platform | Context thresholds, handover triggers, session hygiene |
 
 ### Example: Research + Python
 
 For a project named `spectral-analysis` with workflow `research` and stack `python`, the assembled `CLAUDE.md` would contain:
 
-```markdown
+````markdown
 # spectral-analysis
 
 Spectral analysis toolkit for astronomical data.
@@ -281,20 +396,25 @@ Spectral analysis toolkit for astronomical data.
 ## Getting Started
 
 \```bash
+
 # Create virtual environment
+
 python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+source .venv/bin/activate # or .venv\Scripts\activate on Windows
 
 # Install dependencies
+
 pip install -e ".[dev]"
 
 # Run tests (human only — CC must not execute tests)
+
 pytest --json-report --json-report-file=tests/reports/latest.json
 \```
 
 ## Workflow
 
 This project follows the Research-to-Implementation workflow:
+
 1. Research notes in `docs/research-notes/`
 2. `/research-setup` — analyse notes, recommend stack and tooling
 3. Deep research via Claude.ai Research → `docs/research-output/`
@@ -307,19 +427,19 @@ Key commands: `/research-setup`, `/tdd-plan`, `/session-handover`, `/remap`, `/s
 ## Project Structure
 
 \```
-src/                    # Implementation code
-tests/                  # Test files
-  reports/              # JSON test output (read by hooks)
+src/ # Implementation code
+tests/ # Test files
+reports/ # JSON test output (read by hooks)
 docs/
-  research-notes/       # Input research (from Obsidian/mobile)
-  research-output/      # Validated research (from Claude.ai)
-  handover/             # Session state documents
-  implementation-plan.md
+research-notes/ # Input research (from Obsidian/mobile)
+research-output/ # Validated research (from Claude.ai)
+handover/ # Session state documents
+implementation-plan.md
 .claude/
-  commands/             # Custom slash commands
-  hooks/                # Automation scripts
-  references/           # Progressive-disclosure reference library
-  scripts/              # Utility scripts
+commands/ # Custom slash commands
+hooks/ # Automation scripts
+references/ # Progressive-disclosure reference library
+scripts/ # Utility scripts
 \```
 
 ## Development Guidelines
@@ -334,10 +454,10 @@ docs/
 ## References
 
 When looking for code structure, consult the codebase map:
-@.claude/references/_index.md
+@.claude/references/\_index.md
 
 When encountering errors or modifying code in areas with known issues:
-@.claude/references/error-corrections/_index.md
+@.claude/references/error-corrections/\_index.md
 
 ## Handover & Session Rules
 
@@ -345,7 +465,7 @@ When encountering errors or modifying code in areas with known issues:
 - Run `/session-handover` before `/clear`
 - New sessions: load latest handover via `@docs/handover/latest.md`
 - Emergency: PreCompact hook auto-captures partial state if auto-compaction fires
-```
+````
 
 ### Rendering Logic
 
@@ -354,7 +474,7 @@ function assembleCLAUDEmd(
   workflow: WorkflowPreset,
   stack: StackPreset,
   name: string,
-  description: string
+  description: string,
 ): string {
   const sections: ClaudeMdSection[] = [
     ...getPlatformSections(name, description),
@@ -369,13 +489,15 @@ function assembleCLAUDEmd(
   }
 
   // Sort by order, render
-  const ordered = Array.from(sectionMap.values()).sort((a, b) => a.order - b.order);
-
-  const parts = ordered.map((s) =>
-    s.order === 0 ? s.content : `## ${s.heading}\n\n${s.content}`
+  const ordered = Array.from(sectionMap.values()).sort(
+    (a, b) => a.order - b.order,
   );
 
-  return parts.join('\n\n');
+  const parts = ordered.map((s) =>
+    s.order === 0 ? s.content : `## ${s.heading}\n\n${s.content}`,
+  );
+
+  return parts.join("\n\n");
 }
 ```
 
@@ -383,7 +505,7 @@ The `order: 0` special case allows the project header to render without a `##` p
 
 ---
 
-## 5. `.claude/settings.json` Generation
+## 7. `.claude/settings.json` Generation
 
 **Implemented in:** `flowforge-mobile/lib/templates/settings.ts`
 
@@ -564,7 +686,7 @@ Note the absence of `Stop` (no test loop), the absence of `post-typecheck.sh` (n
 
 ---
 
-## 6. `.devcontainer/` Composition
+## 8. `.devcontainer/` Composition
 
 **Implemented in:** `flowforge-mobile/lib/templates/devcontainer.ts`
 
@@ -582,13 +704,13 @@ This image includes git, Node.js, Python, and common build tools. Stack-specific
 
 ### Feature Selection per Stack
 
-| Stack | Features Added |
-|-------|---------------|
-| TypeScript-React | `ghcr.io/devcontainers/features/node:1` |
-| TypeScript-Node | `ghcr.io/devcontainers/features/node:1` |
-| Python | `ghcr.io/devcontainers/features/python:1` |
-| Rust | `ghcr.io/devcontainers/features/rust:1` |
-| Custom | None (base image only) |
+| Stack            | Features Added                            |
+| ---------------- | ----------------------------------------- |
+| TypeScript-React | `ghcr.io/devcontainers/features/node:1`   |
+| TypeScript-Node  | `ghcr.io/devcontainers/features/node:1`   |
+| Python           | `ghcr.io/devcontainers/features/python:1` |
+| Rust             | `ghcr.io/devcontainers/features/rust:1`   |
+| Custom           | None (base image only)                    |
 
 ### Example: `devcontainer.json` for Python Stack
 
@@ -669,7 +791,7 @@ The composed `post-create.sh` concatenates the platform base with the stack-spec
 
 ---
 
-## 7. `.gitignore` Merge
+## 9. `.gitignore` Merge
 
 The `.gitignore` is assembled from a platform base (common to all projects) and stack-specific additions, then deduplicated.
 
@@ -708,6 +830,7 @@ tests/reports/.last-test-run
 ### Stack Additions
 
 **TypeScript-React:**
+
 ```gitignore
 node_modules/
 dist/
@@ -722,6 +845,7 @@ npm-debug.log*
 ```
 
 **TypeScript-Node:**
+
 ```gitignore
 node_modules/
 dist/
@@ -731,6 +855,7 @@ npm-debug.log*
 ```
 
 **Python:**
+
 ```gitignore
 __pycache__/
 *.py[cod]
@@ -749,6 +874,7 @@ htmlcov/
 ```
 
 **Rust:**
+
 ```gitignore
 target/
 Cargo.lock
@@ -764,7 +890,7 @@ function mergeGitignore(stack: StackPreset): string {
   const platformBase = getPlatformGitignore();
   const stackAdditions = getStackGitignore(stack);
 
-  const allLines = [...platformBase.split('\n'), ...stackAdditions.split('\n')];
+  const allLines = [...platformBase.split("\n"), ...stackAdditions.split("\n")];
 
   // Deduplicate non-empty, non-comment lines while preserving order and comments
   const seen = new Set<string>();
@@ -772,84 +898,74 @@ function mergeGitignore(stack: StackPreset): string {
 
   for (const line of allLines) {
     const trimmed = line.trim();
-    if (trimmed === '' || trimmed.startsWith('#')) {
-      result.push(line);  // Preserve blank lines and comments
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      result.push(line); // Preserve blank lines and comments
     } else if (!seen.has(trimmed)) {
       seen.add(trimmed);
       result.push(line);
     }
   }
 
-  return result.join('\n');
+  return result.join("\n");
 }
 ```
 
 ---
 
-## 8. Mobile UX Flow
+## 10. Mobile UX Flow
 
-The following flow describes the template creation experience in FlowForge mobile. This is designed but not yet built -- the current MVP uses the simpler `web-app` / `cli-tool` template selection.
+The home screen presents two creation paths. The **Obsidian import flow** (section 3) is fully built and supports all workflows and stacks via frontmatter. The **manual create flow** described below currently uses hardcoded templates and will be replaced by the full workflow/stack selection UI.
 
-### Screen Sequence
+### Current: Dual-Flow Home Screen
 
-**Screen 1: Select Workflow**
+The home screen (`app/(app)/index.tsx`) shows two primary buttons:
 
-Four cards, each with an icon, title, and one-line description:
+- **"Import from Obsidian"** → navigates to `/pick` (Obsidian import flow, section 3)
+- **"Create Manually"** → navigates to `/create` (template selection)
 
-| Workflow | Description |
-|----------|-------------|
-| Research | Start from research notes, discover the right stack, build with TDD |
-| Feature | Add a feature to an existing project pattern with spec-driven TDD |
-| Greenfield | Start from a brief, architect the system, build from scratch |
-| Learning | Explore a topic with guided exercises and explanations |
+### Current: Manual Create Flow
 
-**Screen 2: Select Stack**
+The manual flow (`app/(app)/create.tsx`) offers two hardcoded templates:
 
-Five cards:
+| Template | Encoded as                     | Workflow + Stack              |
+| -------- | ------------------------------ | ----------------------------- |
+| Web App  | `greenfield--typescript-react` | greenfield + typescript-react |
+| CLI Tool | `greenfield--typescript-node`  | greenfield + typescript-node  |
 
-| Stack | Description |
-|-------|-------------|
-| TypeScript-React | React/Next.js web application |
-| TypeScript-Node | Node.js backend or CLI tool |
-| Python | Python application or library |
-| Rust | Rust application or library |
-| Custom | No stack preset -- configure manually after creation |
-
-**Screen 3: Project Details**
-
-Form fields:
-- **Name** (required) -- validated against GitHub repo name rules via `isValidRepoName()`
-- **Description** (optional) -- one-line project summary
-- **Private** (toggle, default: on) -- repository visibility
-
-**Screen 4: Create**
-
-Single "Create Project" button. On press:
+Selecting a template navigates to `/(app)/create/[type].tsx` where the user enters name, description, and visibility, then creates the repo. The `createRepository()` function receives `workflow` and `stack` from `CreateRepoOptions` and calls `composeTemplate()` internally — settings, devcontainer, and all template files are composed inside `createRepository()`:
 
 ```typescript
-async function handleCreate() {
-  setLoading(true);
-  const files = composeTemplate(workflow, stack, name, description);
-  const settings = buildSettings(workflow);
-  files.push({ path: '.claude/settings.json', content: JSON.stringify(settings, null, 2) });
-
-  const result = await createRepository(token, {
-    name,
-    description,
-    isPrivate,
-    files,  // Replaces the old `template` parameter
-  });
-  // Navigate to success screen
-}
+// In createRepository() (lib/github.ts):
+const files = composeTemplate(workflow, stack, name, description);
+// Context file injected if provided (Obsidian import flow)
+// Blobs → tree → commit → ref via Git Data API
 ```
 
-The `createRepository` function in `flowforge-mobile/lib/github.ts` is updated to accept a `FileToCreate[]` directly instead of a template name, using the same blob -> tree -> commit -> ref pipeline.
+### Planned: Full Workflow/Stack Selection UI
 
-**Screen 5: Success (see section 11 for per-workflow variations)**
+The planned 5-screen workflow/stack selection replaces the manual create flow (not the Obsidian flow):
+
+**Screen 1: Select Workflow** — Four cards (Research, Feature, Greenfield, Learning)
+**Screen 2: Select Stack** — Five cards (TypeScript-React, TypeScript-Node, Python, Rust, Custom)
+**Screen 3: Project Details** — Name (validated via `isValidRepoName()`), description, private toggle
+**Screen 4: Create** — Single button, calls `createRepository()` with chosen workflow + stack
+**Screen 5: Success** — See section 10.1 below
+
+### 10.1 Success Screen (Current Implementation)
+
+The success screen (`app/(app)/success.tsx`) shows:
+
+1. **Success indicator** — checkmark icon + "Repository Created!" + repo full name
+2. **Claude Code status card** — one of three states (see section 4)
+3. **Clone command** — tap-to-copy `git clone` command
+4. **Quick start guide** — generic 4-step instructions (Open Claude Code → Select repo → Run /init → Start building)
+5. **Action buttons** — "Open Claude Code" (opens `claude.ai/code` in browser) + "Create Another Project" (resets state, returns to home)
+
+Note: The success screen does NOT yet show workflow-specific next-steps (section 13's per-workflow variations are still future work).
 
 ---
 
-## 9. Mobile to CC Web Deep Link Flow
+## 11. Mobile to CC Web Deep Link Flow
 
 This flow connects FlowForge's mobile scaffolding with CC web's remote coding environment, enabling a workflow where the user captures ideas on mobile and directs implementation from the phone while CC does the coding on a full development machine.
 
@@ -860,7 +976,7 @@ This flow connects FlowForge's mobile scaffolding with CC web's remote coding en
 2. **FlowForge creates GitHub repo with full scaffold.** The template composition system (sections 3-7) produces a repo containing `CLAUDE.md`, `.claude/settings.json`, all hook scripts, slash commands, reference skeleton, and devcontainer config. The repo is pushed to GitHub via Octokit.
 
 3. **User launches CC web session.** Two mechanisms:
-   - **Deep link:** FlowForge opens a URL pointing CC web at the repo (format TBD -- see open questions, section 13).
+   - **Deep link:** FlowForge opens a URL pointing CC web at the repo (format TBD -- see open questions, section 15).
    - **Dashboard:** User navigates to CC web manually and selects the repo from their GitHub repos.
 
 4. **CC web clones repo.** The remote container is built from `.devcontainer/devcontainer.json`. `post-create.sh` installs RTK, formatters, linters, and type checkers. CC reads `CLAUDE.md`, `.claude/settings.json` wires the hooks.
@@ -868,7 +984,7 @@ This flow connects FlowForge's mobile scaffolding with CC web's remote coding en
 5. **Automation layer activates.** Hooks fire on CC web exactly as they would locally: `block-test-execution` prevents CC from running tests, `session-state` injects project status, `stop-test-loop` runs tests after each coding turn, `post-typecheck` catches type errors after edits.
 
 6. **User directs work from mobile.** The user can:
-   - Read test results via the dashboard (section 10)
+   - Read test results via the dashboard (section 12)
    - Read handover documents via GitHub API
    - Push additional research notes to `docs/research-notes/` via Octokit
    - Approve plans by reading `docs/implementation-plan.md`
@@ -880,7 +996,7 @@ The repo-as-operating-environment pattern (section 2) means there is no setup st
 
 ---
 
-## 10. Phase 2 Dashboard Vision
+## 12. Phase 2 Dashboard Vision
 
 FlowForge evolves from "create and forget" to an ongoing project dashboard. The mobile app reads project state from GitHub repos that FlowForge has already created, presenting a summary view that lets the user monitor CC's work without opening a terminal.
 
@@ -888,13 +1004,13 @@ FlowForge evolves from "create and forget" to an ongoing project dashboard. The 
 
 All data is read from the repo via GitHub's REST API (Octokit). No additional backend is required -- the repo IS the database.
 
-| Feature | Data Source | Mechanism |
-|---------|------------|-----------|
-| Project status | `tests/reports/latest.json` | GitHub API: get file contents, parse JSON, display pass/fail counts |
-| Current phase | `docs/implementation-plan.md` | GitHub API: get file contents, parse markdown, find first unchecked `- [ ]` item |
-| Latest handover | `docs/handover/` | GitHub API: list directory, sort by name (date-stamped), show latest filename and summary |
-| Test health | `tests/reports/latest.json` | Summary card: green/red indicator, pass rate percentage, failure count |
-| Launch CC web | CC web deep link | Open system browser or in-app webview with repo URL |
+| Feature             | Data Source                    | Mechanism                                                                                 |
+| ------------------- | ------------------------------ | ----------------------------------------------------------------------------------------- |
+| Project status      | `tests/reports/latest.json`    | GitHub API: get file contents, parse JSON, display pass/fail counts                       |
+| Current phase       | `docs/implementation-plan.md`  | GitHub API: get file contents, parse markdown, find first unchecked `- [ ]` item          |
+| Latest handover     | `docs/handover/`               | GitHub API: list directory, sort by name (date-stamped), show latest filename and summary |
+| Test health         | `tests/reports/latest.json`    | Summary card: green/red indicator, pass rate percentage, failure count                    |
+| Launch CC web       | CC web deep link               | Open system browser or in-app webview with repo URL                                       |
 | Push research notes | In-app editor or Obsidian sync | Git commit via Octokit: create blob, create tree (single file), create commit, update ref |
 
 ### Dashboard Cards
@@ -920,11 +1036,11 @@ Tapping the card opens a detail view with full test failure list, implementation
 
 The initial implementation uses polling (GitHub API requests on a timer or pull-to-refresh). This is acceptable for the expected usage pattern (checking on a project a few times per day), and avoids the complexity of webhook infrastructure.
 
-If polling proves insufficient (see open questions, section 13), a future version could use GitHub webhooks delivered to a FlowForge API endpoint, which pushes notifications to the mobile app via push notifications.
+If polling proves insufficient (see open questions, section 15), a future version could use GitHub webhooks delivered to a FlowForge API endpoint, which pushes notifications to the mobile app via push notifications.
 
 ---
 
-## 11. Success Screen Next-Steps per Workflow
+## 13. Success Screen Next-Steps per Workflow
 
 After repo creation, the success screen shows workflow-specific quick-start instructions. These tell the user what to do first with their newly scaffolded project.
 
@@ -980,7 +1096,7 @@ Next steps:
 
 ---
 
-## 12. Implementation Sequence
+## 14. Implementation Sequence
 
 The sprints below are adapted from the research document's implementation sequence (research-workflow-system-design-v2.md, section 13), with FlowForge-specific integration points called out.
 
@@ -991,7 +1107,7 @@ The sprints below are adapted from the research document's implementation sequen
 3. **Codebase mapper** -- productionise the existing AST mapper script, add to global tools.
 4. **Core hooks** -- `block-test-execution.sh`, `protect-files.sh`, RTK auto-wrapper.
 
-*FlowForge impact: None yet. This sprint builds the components that FlowForge will later bundle into templates.*
+_FlowForge impact: None yet. This sprint builds the components that FlowForge will later bundle into templates._
 
 ### Sprint 2: Automation Layer
 
@@ -1000,7 +1116,7 @@ The sprints below are adapted from the research document's implementation sequen
 7. **Session/lifecycle hooks** -- `session-state.sh`, context budget monitor (prompt hook), `pre-compact-handover.sh`.
 8. **Hook-check command** -- `/hook-check` slash command to verify all hooks are present and functional.
 
-*FlowForge impact: These scripts become the hook files that FlowForge bundles into repos. Each script must be self-contained (no external dependencies beyond what post-create.sh installs).*
+_FlowForge impact: These scripts become the hook files that FlowForge bundles into repos. Each script must be self-contained (no external dependencies beyond what post-create.sh installs)._
 
 ### Sprint 3: Workflow Layer
 
@@ -1009,16 +1125,22 @@ The sprints below are adapted from the research document's implementation sequen
 11. **Reference library structure** -- create the `_index.md` hierarchy template with empty category indexes.
 12. **Error correction framework** -- create the progressive disclosure structure with empty category files.
 
-*FlowForge impact: Slash commands and reference structure templates are now ready to be included in the composition system.*
+_FlowForge impact: Slash commands and reference structure templates are now ready to be included in the composition system._
 
 ### Sprint 4: FlowForge Integration
 
-13. **Template composition system** -- implement `composeTemplate()`, `assembleCLAUDEmd()`, `mergeGitignore()`, `buildSettings()` in `flowforge-mobile/lib/github.ts`. Replace the current `getWebAppTemplate`/`getCliToolTemplate` with the three-layer pipeline.
-14. **Workflow and stack selection UI** -- new screens for workflow selection, stack selection, and project details (section 8).
-15. **Devcontainer composition** -- implement `getDevcontainerFiles()` per stack, compose `post-create.sh` from platform + stack requirements.
-16. **Success screen per workflow** -- implement workflow-specific next-steps instructions (section 11).
-17. **FlowForge mobile dashboard** -- read project state from GitHub repos via Octokit, display summary cards (section 10).
-18. **Deep link / launch flow** -- mobile to CC web session launch on a scaffolded repo (section 9).
+13. ~~**Template composition system**~~ ✅ -- `composeTemplate()`, `assembleCLAUDEmd()`, `mergeGitignore()`, `buildSettings()` implemented in `flowforge-mobile/lib/templates/`. Three-layer pipeline replaced the old `getWebAppTemplate`/`getCliToolTemplate`.
+14. **Workflow and stack selection UI** -- partially done. Obsidian import flow bypasses this via frontmatter (all workflows and stacks supported). Manual flow still uses hardcoded templates (Web App, CLI Tool). Full selection UI for manual flow is next.
+15. ~~**Devcontainer composition**~~ ✅ -- `getDevcontainerFiles()` implemented per stack, `post-create.sh` composed from platform + stack requirements.
+16. **Success screen per workflow** -- generic success screen implemented with Claude Code status, clone command, and quick start. Workflow-specific next-steps (section 13) still future.
+17. **FlowForge mobile dashboard** -- future. Read project state from GitHub repos via Octokit, display summary cards (section 12).
+18. **Deep link / launch flow** -- future. Mobile to CC web session launch on a scaffolded repo (section 11).
+
+**New completed items (not in original sequence):**
+
+19. ~~**Obsidian import flow**~~ ✅ -- file picker, frontmatter parsing (`lib/frontmatter.ts`), context file injection, review/edit screen. See section 3.
+20. ~~**Claude Code GitHub App integration**~~ ✅ -- `lib/claude-code-app.ts` enables Claude Code for new repos post-creation. See section 4.
+21. ~~**Dual-flow home screen**~~ ✅ -- "Import from Obsidian" + "Create Manually" buttons on home screen. See section 10.
 
 ### Sprint 5: Validation and Refinement
 
@@ -1029,9 +1151,9 @@ The sprints below are adapted from the research document's implementation sequen
 
 ---
 
-## 13. Open Questions
+## 15. Open Questions
 
-Carried forward from the research document (section 15) plus new questions specific to the FlowForge integration.
+Carried forward from the research document plus new questions specific to the FlowForge integration.
 
 ### From the Research Document
 
@@ -1044,7 +1166,7 @@ Carried forward from the research document (section 15) plus new questions speci
    - Or require explicit test command in `.claude/settings.local.json` or an environment variable
    - Or generate a stack-specific `stop-test-loop.sh` per stack preset (simplest for FlowForge)
 
-4. **Obsidian to repo sync.** Phase 0 to Phase 1 transfer is still manual copy. Options: Obsidian Git plugin, GitHub Action watching a tagged folder, or a FlowForge in-app note editor that commits directly. The in-app editor avoids external dependencies but duplicates Obsidian's functionality.
+4. **Obsidian to repo sync.** ~~Phase 0 to Phase 1 transfer is still manual copy.~~ Partially resolved: the Obsidian import flow (section 3) lets users pick a `.md` file from their Obsidian vault, parse frontmatter for project settings, and inject the file as `context/{filename}` in the repo. This covers initial project creation. Ongoing sync (pushing updated notes to an existing repo) is still open — options remain: Obsidian Git plugin, GitHub Action, or a FlowForge in-app push-to-repo feature.
 
 ### New Questions (FlowForge-Specific)
 
@@ -1066,5 +1188,8 @@ Carried forward from the research document (section 15) plus new questions speci
 - **Workflow preset definitions** (phase sequences, slash commands per workflow, workflow-specific rules): see `workflow-presets.md`
 - **Research document** (full system design with implementation details): see `archive/research-workflow-system-design-v2.md`
 - **Template implementation**: `flowforge-mobile/lib/templates/` — `compose.ts` (orchestrator), `platform.ts` (hooks + universal files), `settings.ts` (settings.json), `devcontainer.ts` (devcontainer), `claude-md.ts` (CLAUDE.md assembly), `workflows/` (4 presets), `stacks/` (5 configs)
-- **Types**: `flowforge-mobile/lib/types.ts` — `WorkflowPreset`, `StackPreset`, `FileToCreate`, etc.
+- **Types**: `flowforge-mobile/lib/types.ts` — `WorkflowPreset`, `StackPreset`, `FileToCreate`, `PickedFile`, `FrontmatterResult`, `CreateRepoOptions`, `CreatedRepo`, `WorkflowMeta`, `StackMeta`
 - **GitHub API integration**: `flowforge-mobile/lib/github.ts` — `createRepository()`, `deleteRepository()`, `isValidRepoName()`
+- **Frontmatter parsing**: `flowforge-mobile/lib/frontmatter.ts` — `parseFrontmatter()`, `filenameToRepoName()`
+- **Claude Code GitHub App**: `flowforge-mobile/lib/claude-code-app.ts` — `setupClaudeCode()`, `findClaudeCodeInstallation()`, `enableClaudeCodeForRepo()`
+- **Error display**: `flowforge-mobile/components/CopyableError.tsx` — reusable error component with tap-to-copy
