@@ -4,14 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-FlowForge is a mobile app that creates GitHub repositories pre-configured with CLAUDE.md templates. Two packages:
+FlowForge is a mobile app that creates GitHub repositories pre-configured with CLAUDE.md templates. Three packages:
 
 - **flowforge-mobile/** — React Native (Expo SDK 52) app with Expo Router, Zustand, NativeWind, Octokit
 - **flowforge-api/** — Vercel serverless backend for GitHub OAuth token exchange
+- **flowforge-server/** — Self-hosted Node.js terminal server (Express, ws, node-pty) for remote repo cloning and Claude Code access via mobile
 
 ## Commands
 
 ### Mobile App (run from `flowforge-mobile/`)
+
 ```
 npm start              # Expo dev server
 npm test               # Jest tests
@@ -21,9 +23,18 @@ npm run typecheck      # TypeScript checking
 ```
 
 ### Backend API (run from `flowforge-api/`)
+
 ```
 npm run dev            # Local dev (vercel dev)
 npm run deploy         # Deploy to production
+```
+
+### Terminal Server (run from `flowforge-server/`)
+
+```
+npm run dev            # nodemon + ts-node
+npm run build          # TypeScript compile
+npm start              # Run compiled JS
 ```
 
 ## Architecture
@@ -32,7 +43,9 @@ npm run deploy         # Deploy to production
 
 **Repo creation flow (`lib/github.ts`):** Creates empty repo → generates template files via `composeTemplate()` → creates git blobs → creates tree → creates commit → creates main branch → sets default branch. On failure, `deleteRepository()` provides cleanup.
 
-**State:** Single Zustand store (`stores/store.ts`) manages auth state, user info, and last created repo.
+**Remote terminal flow (`flowforge-server/`):** Mobile pairs with home server via 6-digit code → receives JWT → stores in SecureStore. Can clone repos via `POST /api/clone` (NDJSON streaming progress) and open interactive terminal via WebSocket (`/terminal`). Terminal uses node-pty with xterm.js in a WebView. Sessions support reconnection (50KB scrollback), multi-client broadcast, and 30-min inactivity GC.
+
+**State:** Single Zustand store (`stores/store.ts`) manages auth state, user info, last created repo, and home server connection state.
 
 **Routing:** Expo Router file-based routing. `app/(app)/` group is auth-guarded. `app/login.tsx` handles unauthenticated state.
 
@@ -52,3 +65,5 @@ npm run deploy         # Deploy to production
 Mobile (`.env`): `EXPO_PUBLIC_GITHUB_CLIENT_ID`, `EXPO_PUBLIC_TOKEN_ENDPOINT`, `EXPO_PUBLIC_SENTRY_DSN`
 
 Backend (Vercel env): `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+
+Terminal Server (`.env`): `PORT` (default 7433). JWT secret auto-generated to `~/.flowforge-server/secret.key`.

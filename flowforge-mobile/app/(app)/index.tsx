@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Home() {
   const router = useRouter();
-  const { user, logout } = useStore();
+  const { user, logout, homeServerUrl, isServerConnected } = useStore();
 
   const handleLogout = async () => {
     await logout();
@@ -55,25 +55,77 @@ export default function Home() {
             </Text>
           </Pressable>
 
-          {/* Secondary: Create Manually */}
+          {/* Template cards */}
           <Pressable
-            onPress={() => router.push("/(app)/create")}
+            onPress={() =>
+              router.push("/(app)/create/greenfield--typescript-react")
+            }
             className="bg-surface p-6 rounded-xl border border-border active:border-primary"
           >
             <Text className="text-white text-xl font-semibold mb-1">
-              Create Manually
+              Web App
             </Text>
             <Text className="text-gray-400 text-sm">
-              Choose a template and configure from scratch
+              React, Next.js, or similar web applications
             </Text>
           </Pressable>
-        </View>
 
-        {/* Sign Out */}
-        <View className="pb-4">
-          <Pressable onPress={handleLogout} className="py-3 items-center">
-            <Text className="text-gray-500">Sign out</Text>
+          <Pressable
+            onPress={() =>
+              router.push("/(app)/create/greenfield--typescript-node")
+            }
+            className="bg-surface p-6 rounded-xl border border-border active:border-primary"
+          >
+            <Text className="text-white text-xl font-semibold mb-1">
+              CLI Tool
+            </Text>
+            <Text className="text-gray-400 text-sm">
+              Command-line applications and utilities
+            </Text>
           </Pressable>
+
+          {/* Home Server */}
+          {homeServerUrl ? (
+            <Pressable
+              onPress={() => router.push("/(app)/server")}
+              className="bg-surface p-6 rounded-xl border border-border active:border-primary"
+            >
+              <View className="flex-row items-center mb-1">
+                <View
+                  className={`w-2.5 h-2.5 rounded-full mr-2 ${
+                    isServerConnected ? "bg-primary" : "bg-red-500"
+                  }`}
+                />
+                <Text className="text-white text-xl font-semibold">
+                  Terminal
+                </Text>
+              </View>
+              <Text className="text-gray-400 text-sm">
+                {isServerConnected
+                  ? "Open a terminal on your home server"
+                  : "Server offline — tap to manage"}
+              </Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              onPress={() => router.push("/(app)/server/pair")}
+              className="bg-surface p-6 rounded-xl border border-border border-dashed active:border-primary"
+            >
+              <Text className="text-white text-xl font-semibold mb-1">
+                Connect Home Server
+              </Text>
+              <Text className="text-gray-400 text-sm">
+                Pair with your home machine to clone repos and run Claude Code
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Coming Soon */}
+          <View className="p-4 rounded-lg border border-border border-dashed">
+            <Text className="text-gray-500 text-center">
+              More workflows coming soon
+            </Text>
+          </View>
         </View>
       </View>
     </SafeAreaView>

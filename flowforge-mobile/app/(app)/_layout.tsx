@@ -29,9 +29,11 @@ export default function AppLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="pick" />
-      <Stack.Screen name="create" />
       <Stack.Screen name="create/[type]" />
       <Stack.Screen name="success" />
+      <Stack.Screen name="server/index" />
+      <Stack.Screen name="server/pair" />
+      <Stack.Screen name="server/terminal" />
     </Stack>
   );
 }

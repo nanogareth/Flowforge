@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import { Octokit } from "@octokit/rest";
 import { getToken, saveToken, clearToken } from "../lib/auth";
+import {
+  getServerCredentials,
+  saveServerCredentials,
+  clearServerCredentials,
+  checkHealth,
+} from "../lib/server-auth";
 import type { CreatedRepo } from "../lib/types";
 
 interface User {
@@ -20,11 +26,12 @@ interface AppState {
   lastCreatedRepo: CreatedRepo | null;
 
   // Claude Code integration state
-  claudeCodeEnabled: boolean;
-  claudeCodeError: string | null;
+  claudeCodeConfigureUrl: string | null;
 
-  // Recent repos (foundation for future dashboard)
-  recentRepos: CreatedRepo[];
+  // Home server state
+  homeServerUrl: string | null;
+  homeServerToken: string | null;
+  isServerConnected: boolean;
 
   // Actions
   initialize: () => Promise<void>;
@@ -32,9 +39,13 @@ interface AppState {
   logout: () => Promise<void>;
   clearError: () => void;
   setLastCreatedRepo: (repo: CreatedRepo | null) => void;
-  addRecentRepo: (repo: CreatedRepo) => void;
-  setClaudeCodeState: (enabled: boolean, error: string | null) => void;
+  setClaudeCodeState: (configureUrl: string | null) => void;
   resetCreationState: () => void;
+
+  // Home server actions
+  setHomeServer: (url: string, token: string) => Promise<void>;
+  clearHomeServer: () => Promise<void>;
+  checkServerHealth: () => Promise<boolean>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -43,15 +54,29 @@ export const useStore = create<AppState>((set, get) => ({
   isLoading: true,
   error: null,
   lastCreatedRepo: null,
-  claudeCodeEnabled: false,
-  claudeCodeError: null,
-  recentRepos: [],
+  claudeCodeConfigureUrl: null,
+  homeServerUrl: null,
+  homeServerToken: null,
+  isServerConnected: false,
 
   initialize: async () => {
     try {
       const token = await getToken();
       if (token) {
         await get().login(token);
+      }
+
+      // Load server credentials
+      const serverCreds = await getServerCredentials();
+      if (serverCreds) {
+        set({
+          homeServerUrl: serverCreds.url,
+          homeServerToken: serverCreds.token,
+        });
+        // Check health in background (don't block init)
+        checkHealth(serverCreds.url).then((connected) => {
+          set({ isServerConnected: connected });
+        });
       }
     } catch (error) {
       console.error("Init error:", error);
@@ -84,14 +109,13 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logout: async () => {
+    // Only clear GitHub auth state; server credentials persist across logout
     await clearToken();
     set({
       token: null,
       user: null,
       lastCreatedRepo: null,
-      claudeCodeEnabled: false,
-      claudeCodeError: null,
-      recentRepos: [],
+      claudeCodeConfigureUrl: null,
     });
   },
 
@@ -99,26 +123,40 @@ export const useStore = create<AppState>((set, get) => ({
 
   setLastCreatedRepo: (repo) => {
     set({ lastCreatedRepo: repo });
-    if (repo) {
-      get().addRecentRepo(repo);
-    }
   },
 
-  addRecentRepo: (repo) =>
-    set((state) => ({
-      recentRepos: [
-        repo,
-        ...state.recentRepos.filter((r) => r.full_name !== repo.full_name),
-      ],
-    })),
-
-  setClaudeCodeState: (enabled, error) =>
-    set({ claudeCodeEnabled: enabled, claudeCodeError: error }),
+  setClaudeCodeState: (configureUrl) =>
+    set({ claudeCodeConfigureUrl: configureUrl }),
 
   resetCreationState: () =>
     set({
       lastCreatedRepo: null,
-      claudeCodeEnabled: false,
-      claudeCodeError: null,
+      claudeCodeConfigureUrl: null,
     }),
+
+  setHomeServer: async (url, token) => {
+    await saveServerCredentials(url, token);
+    set({
+      homeServerUrl: url,
+      homeServerToken: token,
+      isServerConnected: true,
+    });
+  },
+
+  clearHomeServer: async () => {
+    await clearServerCredentials();
+    set({
+      homeServerUrl: null,
+      homeServerToken: null,
+      isServerConnected: false,
+    });
+  },
+
+  checkServerHealth: async () => {
+    const { homeServerUrl } = get();
+    if (!homeServerUrl) return false;
+    const connected = await checkHealth(homeServerUrl);
+    set({ isServerConnected: connected });
+    return connected;
+  },
 }));

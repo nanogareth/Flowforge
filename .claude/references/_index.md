@@ -1,0 +1,98 @@
+# Flowforge References Index
+
+> Read this file to discover relevant references by keyword.
+
+## Codebase
+
+- `codebase.md#flowforge-mobileappapplayouttsx` — AppLayout()
+  - **Keywords**: (app), AppLayout, _layout
+- `codebase.md#flowforge-mobileappappcreatetypetsx` — FormData
+  - **Keywords**: CreateForm, FormData, [type], create, parseTypeParam
+- `codebase.md#flowforge-mobileappappindextsx` — Home()
+  - **Keywords**: (app), Home, index
+- `codebase.md#flowforge-mobileappapppicktsx` — PickState
+  - **Keywords**: (app), MAX_FILE_SIZE, PickScreen, PickState, pick
+- `codebase.md#flowforge-mobileappappserverindextsx` — ServerSettings()
+  - **Keywords**: ServerSettings, index, server
+- `codebase.md#flowforge-mobileappappserverpairtsx` — PairScreen()
+  - **Keywords**: PairScreen, pair, server
+- `codebase.md#flowforge-mobileappappserverterminaltsx` — TerminalScreen()
+  - **Keywords**: TerminalScreen, server, terminal
+- `codebase.md#flowforge-mobileappappsuccesstsx` — Success()
+  - **Keywords**: (app), Success, success
+- `codebase.md#flowforge-mobileapplayouttsx` — RootLayout()
+  - **Keywords**: RootLayout, _layout, app
+- `codebase.md#flowforge-mobileappindextsx` — Index()
+  - **Keywords**: Index, app, index
+- `codebase.md#flowforge-mobileapplogintsx` — Login()
+  - **Keywords**: Login, app, login
+- `codebase.md#flowforge-mobilecomponentscopyableerrortsx` — CopyableErrorProps
+  - **Keywords**: CopyableError, CopyableErrorProps, components
+- `codebase.md#flowforge-mobilelibauthts` — useGitHubAuth()
+  - **Keywords**: GITHUB_CLIENT_ID, TOKEN_ENDPOINT, TOKEN_KEY, auth, clearToken, exchangeCodeForToken, getToken, lib, saveToken, useGitHubAuth
+- `codebase.md#flowforge-mobilelibclaude-code-appts` — ClaudeCodeSetupResult
+  - **Keywords**: ClaudeCodeSetupResult, claude-code-app, lib, setupClaudeCode
+- `codebase.md#flowforge-mobilelibfrontmatterts` — parseYamlValue()
+  - **Keywords**: FRONTMATTER_REGEX, VALID_STACKS, VALID_WORKFLOWS, filenameToRepoName, frontmatter, lib, parseBooleanish, parseFrontmatter, parseYamlValue
+- `codebase.md#flowforge-mobilelibgithubts` — toBase64()
+  - **Keywords**: MIN_CREATION_INTERVAL, createRepository, deleteRepository, github, isValidRepoName, lib, toBase64
+- `codebase.md#flowforge-mobilelibserver-apits` — cloneAndLaunch()
+  - **Keywords**: cloneAndLaunch, lib, server-api
+- `codebase.md#flowforge-mobilelibserver-authts` — saveServerCredentials()
+  - **Keywords**: SERVER_TOKEN_KEY, SERVER_URL_KEY, checkHealth, clearServerCredentials, getServerCredentials, lib, pairWithServer, saveServerCredentials, server-auth
+- `codebase.md#flowforge-mobilelibtemplatesclaude-mdts` — ClaudeMdSection
+  - **Keywords**: ClaudeMdSection, assembleClaudeMd, claude-md, templates
+- `codebase.md#flowforge-mobilelibtemplatescomposets` — composeTemplate()
+  - **Keywords**: compose, composeTemplate, deduplicateFiles, mergeGitignore, templates
+- `codebase.md#flowforge-mobilelibtemplatesdevcontainerts` — DevcontainerJson
+  - **Keywords**: BASE_EXTENSIONS, DevcontainerJson, STACK_CONFIG, devcontainer, getDevcontainerFiles, templates
+- `codebase.md#flowforge-mobilelibtemplatesgithub-actionts` — TriggerConfig
+  - **Keywords**: TRIGGER_MATRIX, TriggerConfig, buildIfCondition, buildOnBlock, buildWithBlock, getGitHubActionFiles, getGitHubIntegrationSection, github-action, templates
+- `codebase.md#flowforge-mobilelibtemplatesplatformts` — getPlatformFiles()
+  - **Keywords**: getPlatformClaudeMdSections, getPlatformFiles, getPlatformGitignore, platform, templates
+- `codebase.md#flowforge-mobilelibtemplatessettingsts` — HookEntry
+  - **Keywords**: HOOK_DIR, HookEntry, HookMatcher, STACK_ENV, SettingsJson, TDD_WORKFLOWS, buildSettings, settings, templates
+- `codebase.md#flowforge-mobilelibtemplatesstackscustomts` — getStackFiles()
+  - **Keywords**: custom, getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstackspythonts` — getStackFiles()
+  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, python, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstacksrustts` — getStackFiles()
+  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, rust, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-nodets` — getStackFiles()
+  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks, typescript-node
+- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-reactts` — getStackFiles()
+  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks, typescript-react
+- `codebase.md#flowforge-mobilelibtemplatesworkflowsfeaturets` — getWorkflowFiles()
+  - **Keywords**: feature, getWorkflowClaudeMdSections, getWorkflowFiles, workflows
+- `codebase.md#flowforge-mobilelibtemplatesworkflowsgreenfieldts` — getWorkflowFiles()
+  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, greenfield, workflows
+- `codebase.md#flowforge-mobilelibtemplatesworkflowslearningts` — getWorkflowFiles()
+  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, learning, workflows
+- `codebase.md#flowforge-mobilelibtemplatesworkflowsresearchts` — getWorkflowFiles()
+  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, research, workflows
+- `codebase.md#flowforge-mobilelibterminal-htmlts` — getTerminalHtml()
+  - **Keywords**: getTerminalHtml, lib, terminal-html
+- `codebase.md#flowforge-mobilelibtypests` — WorkflowPreset
+  - **Keywords**: CreateRepoOptions, CreateRepoResult, CreatedRepo, FileToCreate, FrontmatterResult, PickedFile, StackPreset, WorkflowPreset, lib, types
+- `codebase.md#flowforge-mobilestoresstorets` — User
+  - **Keywords**: AppState, User, store, stores, useStore
+- `codebase.md#flowforge-serversrcauthjwtts` — getSecret()
+  - **Keywords**: auth, getSecret, jwt, sign, verify
+- `codebase.md#flowforge-serversrcauthmiddlewarets` — Request
+  - **Keywords**: Request, auth, authMiddleware, middleware
+- `codebase.md#flowforge-serversrcauthpairingts` — generatePairingCode()
+  - **Keywords**: auth, generatePairingCode, pairing, validatePairingCode
+- `codebase.md#flowforge-serversrcconfigts` — config()
+  - **Keywords**: config, src
+- `codebase.md#flowforge-serversrcroutesclonets` — cloneRouter()
+  - **Keywords**: clone, cloneRouter, routes
+- `codebase.md#flowforge-serversrcrouteshealthts` — markPaired()
+  - **Keywords**: health, isPaired, markPaired, routes, setSessionCountFn
+- `codebase.md#flowforge-serversrcroutespairts` — isRateLimited()
+  - **Keywords**: isRateLimited, pair, routes
+- `codebase.md#flowforge-serversrcterminalsession-managerts` — broadcast()
+  - **Keywords**: appendScrollback, attachClient, broadcast, createSession, destroySession, detachClient, getSession, getSessionCount, session-manager, startGarbageCollector
+- `codebase.md#flowforge-serversrcterminalws-handlerts` — handleWebSocket()
+  - **Keywords**: handleWebSocket, terminal, wireSession, ws-handler
+- `codebase.md#flowforge-serversrctypests` — TerminalSession
+  - **Keywords**: ClientMessage, ServerMessage, TerminalSession, src, types
