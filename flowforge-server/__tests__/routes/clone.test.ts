@@ -1,5 +1,4 @@
 import { EventEmitter } from "events";
-import type { Request, Response } from "express";
 
 // Mock child_process.spawn
 const mockSpawn = jest.fn();
@@ -31,84 +30,123 @@ jest.mock("../../src/terminal/session-manager", () => ({
 }));
 
 import { cloneRouter } from "../../src/routes/clone";
-import express from "express";
-import http from "http";
 
-// Helper: create a test app with the clone router
-function createTestApp() {
-  const app = express();
-  app.use(express.json());
-  app.use(cloneRouter);
-  return app;
+// Extract the actual handler from the router stack
+// The router has: [jsonParser middleware, authMiddleware, handler]
+function getHandler() {
+  const layer = cloneRouter.stack.find(
+    (l: { route?: { path: string } }) => l.route?.path === "/api/clone",
+  );
+  // The route has its own stack of handlers; the last one is our handler
+  const handlers = layer!.route!.stack;
+  return handlers[handlers.length - 1].handle;
 }
 
-// Helper: make a request to the clone endpoint
-async function postClone(
-  app: ReturnType<typeof express>,
-  body: object,
-): Promise<{ status: number; body: string }> {
-  return new Promise((resolve) => {
-    const server = http.createServer(app);
-    server.listen(0, () => {
-      const addr = server.address() as { port: number };
-      fetch(`http://127.0.0.1:${addr.port}/api/clone`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then(async (res) => {
-        const text = await res.text();
-        server.close();
-        resolve({ status: res.status, body: text });
-      });
-    });
-  });
+// Mock Express req/res
+function createMockReq(body: Record<string, unknown> = {}) {
+  return { body, headers: {} } as unknown as import("express").Request;
+}
+
+function createMockRes() {
+  const chunks: string[] = [];
+  const headers: Record<string, string> = {};
+  let statusCode = 200;
+
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(data: unknown) {
+      statusCode = statusCode;
+      chunks.push(JSON.stringify(data));
+    },
+    setHeader(key: string, value: string) {
+      headers[key] = value;
+    },
+    write(chunk: string) {
+      chunks.push(chunk);
+    },
+    end() {
+      // noop
+    },
+    get statusCode() {
+      return statusCode;
+    },
+    get written() {
+      return chunks.join("");
+    },
+    get ndjsonLines() {
+      return chunks
+        .join("")
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map((l) => JSON.parse(l));
+    },
+  };
+  return res;
 }
 
 describe("clone route", () => {
+  let handler: Function;
+
+  beforeAll(() => {
+    handler = getHandler();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   describe("validation", () => {
-    it("should reject missing cloneUrl", async () => {
-      const app = createTestApp();
-      const res = await postClone(app, {});
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toBe("Missing cloneUrl");
+    it("should reject missing cloneUrl", () => {
+      const req = createMockReq({});
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.ndjsonLines).toEqual([{ error: "Missing cloneUrl" }]);
     });
 
-    it("should reject non-string cloneUrl", async () => {
-      const app = createTestApp();
-      const res = await postClone(app, { cloneUrl: 123 });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toBe("Missing cloneUrl");
+    it("should reject non-string cloneUrl", () => {
+      const req = createMockReq({ cloneUrl: 123 as unknown as string });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.statusCode).toBe(400);
     });
 
-    it("should reject cloneUrl without https:// or git@ prefix", async () => {
-      const app = createTestApp();
-      const res = await postClone(app, {
-        cloneUrl: "http://github.com/foo/bar",
-      });
-      expect(res.status).toBe(400);
-      expect(JSON.parse(res.body).error).toMatch(/must start with/);
+    it("should reject cloneUrl without https:// or git@ prefix", () => {
+      const req = createMockReq({ cloneUrl: "http://github.com/foo/bar" });
+      const res = createMockRes();
+      handler(req, res);
+      expect(res.statusCode).toBe(400);
+      expect(res.ndjsonLines[0].error).toMatch(/must start with/);
     });
+  });
 
-    it("should accept https:// URLs", async () => {
-      const mockProcess = new EventEmitter();
-      Object.assign(mockProcess, {
+  describe("git clone execution", () => {
+    function setupMockProcess() {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
         stderr: new EventEmitter(),
         stdout: new EventEmitter(),
       });
-      mockSpawn.mockReturnValue(mockProcess);
+      mockSpawn.mockReturnValue(proc);
+      return proc as EventEmitter & {
+        stderr: EventEmitter;
+        stdout: EventEmitter;
+      };
+    }
 
-      const app = createTestApp();
-      // Start the request (don't await fully, just trigger the spawn)
-      const resPromise = postClone(app, {
+    it("should spawn git clone with correct args for https URL", () => {
+      const proc = setupMockProcess();
+      const req = createMockReq({
         cloneUrl: "https://github.com/user/repo.git",
       });
+      const res = createMockRes();
 
-      // Wait for spawn to be called
-      await new Promise((r) => setTimeout(r, 50));
+      handler(req, res);
+
       expect(mockSpawn).toHaveBeenCalledWith("git", [
         "clone",
         "--progress",
@@ -116,59 +154,40 @@ describe("clone route", () => {
         expect.stringContaining("repo"),
       ]);
 
-      // Complete the clone
-      (mockProcess as EventEmitter).emit("close", 0);
-      const res = await resPromise;
-      expect(res.status).toBe(200);
+      proc.emit("close", 0);
     });
 
-    it("should accept git@ URLs", async () => {
-      const mockProcess = new EventEmitter();
-      Object.assign(mockProcess, {
-        stderr: new EventEmitter(),
-        stdout: new EventEmitter(),
-      });
-      mockSpawn.mockReturnValue(mockProcess);
+    it("should spawn git clone for git@ URLs", () => {
+      const proc = setupMockProcess();
+      const req = createMockReq({ cloneUrl: "git@github.com:user/repo.git" });
+      const res = createMockRes();
 
-      const app = createTestApp();
-      const resPromise = postClone(app, {
-        cloneUrl: "git@github.com:user/repo.git",
-      });
+      handler(req, res);
 
-      await new Promise((r) => setTimeout(r, 50));
-      (mockProcess as EventEmitter).emit("close", 0);
-      const res = await resPromise;
-      expect(res.status).toBe(200);
+      expect(mockSpawn).toHaveBeenCalledWith("git", [
+        "clone",
+        "--progress",
+        "git@github.com:user/repo.git",
+        expect.stringContaining("repo"),
+      ]);
+
+      proc.emit("close", 0);
     });
-  });
 
-  describe("NDJSON streaming", () => {
-    it("should stream progress messages from git stderr", async () => {
-      const mockProcess = new EventEmitter();
-      const mockStderr = new EventEmitter();
-      const mockStdout = new EventEmitter();
-      Object.assign(mockProcess, { stderr: mockStderr, stdout: mockStdout });
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const app = createTestApp();
-      const resPromise = postClone(app, {
+    it("should stream progress from git stderr", () => {
+      const proc = setupMockProcess();
+      const req = createMockReq({
         cloneUrl: "https://github.com/user/repo.git",
       });
+      const res = createMockRes();
 
-      await new Promise((r) => setTimeout(r, 50));
+      handler(req, res);
 
-      // Simulate git progress
-      mockStderr.emit("data", Buffer.from("Cloning into 'repo'..."));
-      mockStderr.emit("data", Buffer.from("Receiving objects: 50%"));
-      (mockProcess as EventEmitter).emit("close", 0);
+      proc.stderr.emit("data", Buffer.from("Cloning into 'repo'..."));
+      proc.stderr.emit("data", Buffer.from("Receiving objects: 50%"));
+      proc.emit("close", 0);
 
-      const res = await resPromise;
-      const lines = res.body
-        .trim()
-        .split("\n")
-        .map((l) => JSON.parse(l));
-
-      // Should have: initial progress + 2 stderr messages + done
+      const lines = res.ndjsonLines;
       expect(lines[0].type).toBe("progress");
       expect(
         lines.some((l: { type: string; message?: string }) =>
@@ -178,90 +197,117 @@ describe("clone route", () => {
       expect(lines[lines.length - 1].type).toBe("done");
     });
 
-    it("should stream error on git failure", async () => {
-      const mockProcess = new EventEmitter();
-      Object.assign(mockProcess, {
-        stderr: new EventEmitter(),
-        stdout: new EventEmitter(),
-      });
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const app = createTestApp();
-      const resPromise = postClone(app, {
+    it("should stream error on non-zero exit code", () => {
+      const proc = setupMockProcess();
+      const req = createMockReq({
         cloneUrl: "https://github.com/user/repo.git",
       });
+      const res = createMockRes();
 
-      await new Promise((r) => setTimeout(r, 50));
-      (mockProcess as EventEmitter).emit("close", 128);
+      handler(req, res);
+      proc.emit("close", 128);
 
-      const res = await resPromise;
-      const lines = res.body
-        .trim()
-        .split("\n")
-        .map((l) => JSON.parse(l));
-      const errorLine = lines.find((l: { type: string }) => l.type === "error");
+      const errorLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "error",
+      );
       expect(errorLine).toBeDefined();
       expect(errorLine.message).toMatch(/exited with code 128/);
+    });
+
+    it("should handle spawn error event", () => {
+      const proc = setupMockProcess();
+      const req = createMockReq({
+        cloneUrl: "https://github.com/user/repo.git",
+      });
+      const res = createMockRes();
+
+      handler(req, res);
+      proc.emit("error", new Error("ENOENT"));
+
+      const errorLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "error",
+      );
+      expect(errorLine).toBeDefined();
+      expect(errorLine.message).toBe("ENOENT");
     });
   });
 
   describe("launchClaude option", () => {
-    it("should create a terminal session when launchClaude is true", async () => {
-      const mockProcess = new EventEmitter();
-      Object.assign(mockProcess, {
+    it("should create a terminal session when launchClaude is true", () => {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
         stderr: new EventEmitter(),
         stdout: new EventEmitter(),
       });
-      mockSpawn.mockReturnValue(mockProcess);
+      mockSpawn.mockReturnValue(proc);
       mockCreateSession.mockReturnValue({ id: "session-123" });
 
-      const app = createTestApp();
-      const resPromise = postClone(app, {
+      const req = createMockReq({
         cloneUrl: "https://github.com/user/repo.git",
         launchClaude: true,
       });
+      const res = createMockRes();
 
-      await new Promise((r) => setTimeout(r, 50));
-      (mockProcess as EventEmitter).emit("close", 0);
+      handler(req, res);
+      proc.emit("close", 0);
 
-      const res = await resPromise;
-      const lines = res.body
-        .trim()
-        .split("\n")
-        .map((l) => JSON.parse(l));
-      const doneLine = lines.find((l: { type: string }) => l.type === "done");
+      const doneLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "done",
+      );
       expect(doneLine.sessionId).toBe("session-123");
       expect(mockCreateSession).toHaveBeenCalledWith(
         expect.objectContaining({ cmd: "claude" }),
       );
     });
 
-    it("should report error when session creation fails", async () => {
-      const mockProcess = new EventEmitter();
-      Object.assign(mockProcess, {
+    it("should report error when session creation fails", () => {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
         stderr: new EventEmitter(),
         stdout: new EventEmitter(),
       });
-      mockSpawn.mockReturnValue(mockProcess);
+      mockSpawn.mockReturnValue(proc);
       mockCreateSession.mockReturnValue(null);
 
-      const app = createTestApp();
-      const resPromise = postClone(app, {
+      const req = createMockReq({
         cloneUrl: "https://github.com/user/repo.git",
         launchClaude: true,
       });
+      const res = createMockRes();
 
-      await new Promise((r) => setTimeout(r, 50));
-      (mockProcess as EventEmitter).emit("close", 0);
+      handler(req, res);
+      proc.emit("close", 0);
 
-      const res = await resPromise;
-      const lines = res.body
-        .trim()
-        .split("\n")
-        .map((l) => JSON.parse(l));
-      const errorLine = lines.find((l: { type: string }) => l.type === "error");
+      const errorLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "error",
+      );
       expect(errorLine).toBeDefined();
       expect(errorLine.message).toMatch(/max sessions/);
+    });
+
+    it("should not create session when launchClaude is false", () => {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
+        stderr: new EventEmitter(),
+        stdout: new EventEmitter(),
+      });
+      mockSpawn.mockReturnValue(proc);
+
+      const req = createMockReq({
+        cloneUrl: "https://github.com/user/repo.git",
+        launchClaude: false,
+      });
+      const res = createMockRes();
+
+      handler(req, res);
+      proc.emit("close", 0);
+
+      expect(mockCreateSession).not.toHaveBeenCalled();
+      const doneLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "done",
+      );
+      expect(doneLine).toBeDefined();
+      expect(doneLine.sessionId).toBeUndefined();
     });
   });
 });

@@ -6,19 +6,19 @@ import {
   checkHealth,
 } from "../lib/server-auth";
 
-// Mock expo-secure-store
-const store = new Map<string, string>();
+// Mock expo-secure-store — variable must be prefixed with "mock" for jest.mock hoisting
+const mockStore = new Map<string, string>();
 
 jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn((key: string, value: string) => {
-    store.set(key, value);
+    mockStore.set(key, value);
     return Promise.resolve();
   }),
   getItemAsync: jest.fn((key: string) => {
-    return Promise.resolve(store.get(key) ?? null);
+    return Promise.resolve(mockStore.get(key) ?? null);
   }),
   deleteItemAsync: jest.fn((key: string) => {
-    store.delete(key);
+    mockStore.delete(key);
     return Promise.resolve();
   }),
 }));
@@ -28,7 +28,7 @@ const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 beforeEach(() => {
-  store.clear();
+  mockStore.clear();
   mockFetch.mockReset();
 });
 
@@ -51,13 +51,13 @@ describe("server credentials", () => {
     });
 
     it("should return null when only url is stored", async () => {
-      store.set("home_server_url", "http://localhost:7433");
+      mockStore.set("home_server_url", "http://localhost:7433");
       const creds = await getServerCredentials();
       expect(creds).toBeNull();
     });
 
     it("should return null when only token is stored", async () => {
-      store.set("home_server_token", "some-token");
+      mockStore.set("home_server_token", "some-token");
       const creds = await getServerCredentials();
       expect(creds).toBeNull();
     });
@@ -142,6 +142,10 @@ describe("pairWithServer", () => {
 });
 
 describe("checkHealth", () => {
+  // checkHealth uses setTimeout for abort — fake timers prevent dangling handles
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
   it("should return true when server responds ok", async () => {
     mockFetch.mockResolvedValue({ ok: true });
     const result = await checkHealth("http://192.168.1.100:7433");
