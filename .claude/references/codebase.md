@@ -4,6 +4,23 @@
 
 ## Module Index
 
+### `flowforge-api/api/auth/token.ts`
+- `TokenRequest`
+- `GitHubTokenResponse`
+- `handler()`
+
+### `flowforge-api/api/health.ts`
+- `handler()`
+
+### `flowforge-mobile/.expo/types/router.d.ts`
+- `__routes`
+
+### `flowforge-mobile/__tests__/github-action.test.ts`
+- `ALL_WORKFLOWS`
+
+### `flowforge-mobile/__tests__/github.test.ts`
+- `HOOK_SCRIPTS`
+
 ### `flowforge-mobile/app/(app)/_layout.tsx`
 - `AppLayout()`
 
@@ -61,18 +78,18 @@
 
 ### `flowforge-mobile/lib/frontmatter.ts`
 - `parseYamlValue()`
-- `filenameToRepoName()`
 - `parseBooleanish()`
+- `filenameToRepoName()`
 - `parseFrontmatter()`
-- `VALID_WORKFLOWS`
 - `FRONTMATTER_REGEX`
+- `VALID_WORKFLOWS`
 - `VALID_STACKS`
 
 ### `flowforge-mobile/lib/github.ts`
 - `toBase64()`
-- `deleteRepository()`
-- `createRepository()`
 - `isValidRepoName()`
+- `createRepository()`
+- `deleteRepository()`
 - `MIN_CREATION_INTERVAL`
 
 ### `flowforge-mobile/lib/server-api.ts`
@@ -80,9 +97,9 @@
 
 ### `flowforge-mobile/lib/server-auth.ts`
 - `saveServerCredentials()`
+- `clearServerCredentials()`
 - `pairWithServer()`
 - `checkHealth()`
-- `clearServerCredentials()`
 - `getServerCredentials()`
 - `SERVER_URL_KEY`
 - `SERVER_TOKEN_KEY`
@@ -93,8 +110,8 @@
 
 ### `flowforge-mobile/lib/templates/compose.ts`
 - `composeTemplate()`
-- `deduplicateFiles()`
 - `mergeGitignore()`
+- `deduplicateFiles()`
 
 ### `flowforge-mobile/lib/templates/devcontainer.ts`
 - `DevcontainerJson`
@@ -105,50 +122,50 @@
 ### `flowforge-mobile/lib/templates/github-action.ts`
 - `TriggerConfig`
 - `buildOnBlock()`
-- `getGitHubIntegrationSection()`
 - `buildWithBlock()`
 - `getGitHubActionFiles()`
 - `buildIfCondition()`
+- `getGitHubIntegrationSection()`
 - `TRIGGER_MATRIX`
 
 ### `flowforge-mobile/lib/templates/platform.ts`
 - `getPlatformFiles()`
-- `getPlatformClaudeMdSections()`
 - `getPlatformGitignore()`
+- `getPlatformClaudeMdSections()`
 
 ### `flowforge-mobile/lib/templates/settings.ts`
 - `HookEntry`
-- `SettingsJson`
 - `HookMatcher`
+- `SettingsJson`
 - `buildSettings()`
 - `HOOK_DIR`
-- `STACK_ENV`
 - `TDD_WORKFLOWS`
+- `STACK_ENV`
 
 ### `flowforge-mobile/lib/templates/stacks/custom.ts`
 - `getStackFiles()`
-- `getStackGitignore()`
 - `getStackClaudeMdSections()`
+- `getStackGitignore()`
 
 ### `flowforge-mobile/lib/templates/stacks/python.ts`
 - `getStackFiles()`
-- `getStackGitignore()`
 - `getStackClaudeMdSections()`
+- `getStackGitignore()`
 
 ### `flowforge-mobile/lib/templates/stacks/rust.ts`
 - `getStackFiles()`
-- `getStackGitignore()`
 - `getStackClaudeMdSections()`
+- `getStackGitignore()`
 
 ### `flowforge-mobile/lib/templates/stacks/typescript-node.ts`
 - `getStackFiles()`
-- `getStackGitignore()`
 - `getStackClaudeMdSections()`
+- `getStackGitignore()`
 
 ### `flowforge-mobile/lib/templates/stacks/typescript-react.ts`
 - `getStackFiles()`
-- `getStackGitignore()`
 - `getStackClaudeMdSections()`
+- `getStackGitignore()`
 
 ### `flowforge-mobile/lib/templates/workflows/feature.ts`
 - `getWorkflowFiles()`
@@ -172,17 +189,25 @@
 ### `flowforge-mobile/lib/types.ts`
 - `WorkflowPreset`
 - `StackPreset`
-- `PickedFile`
-- `CreateRepoOptions`
-- `CreateRepoResult`
 - `FrontmatterResult`
 - `CreatedRepo`
 - `FileToCreate`
+- `CreateRepoOptions`
+- `PickedFile`
+- `CreateRepoResult`
 
 ### `flowforge-mobile/stores/store.ts`
 - `User`
 - `AppState`
 - `useStore()`
+
+### `flowforge-server/__tests__/routes/clone.test.ts`
+- `createTestApp()`
+- `postClone()`
+
+### `flowforge-server/__tests__/terminal/session-manager.test.ts`
+- `createMockPty()`
+- `createMockWs()`
 
 ### `flowforge-server/src/auth/jwt.ts`
 - `getSecret()`
@@ -213,10 +238,10 @@
 
 ### `flowforge-server/src/terminal/session-manager.ts`
 - `broadcast()`
-- `createSession()`
 - `appendScrollback()`
 - `getSessionCount()`
 - `getSession()`
+- `createSession()`
 - `attachClient()`
 - `detachClient()`
 - `destroySession()`

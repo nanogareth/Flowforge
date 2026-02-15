@@ -4,6 +4,16 @@
 
 ## Codebase
 
+- `codebase.md#flowforge-apiapiauthtokents` — TokenRequest
+  - **Keywords**: GitHubTokenResponse, TokenRequest, auth, handler, token
+- `codebase.md#flowforge-apiapihealthts` — handler()
+  - **Keywords**: api, handler, health
+- `codebase.md#flowforge-mobileexpotypesrouterdts` — __routes
+  - **Keywords**: __routes, router.d, types
+- `codebase.md#flowforge-mobiletestsgithub-actiontestts` — github-action.test
+  - **Keywords**: ALL_WORKFLOWS, __tests__, github-action.test
+- `codebase.md#flowforge-mobiletestsgithubtestts` — github.test
+  - **Keywords**: HOOK_SCRIPTS, __tests__, github.test
 - `codebase.md#flowforge-mobileappapplayouttsx` — AppLayout()
   - **Keywords**: (app), AppLayout, _layout
 - `codebase.md#flowforge-mobileappappcreatetypetsx` — FormData
@@ -76,6 +86,10 @@
   - **Keywords**: CreateRepoOptions, CreateRepoResult, CreatedRepo, FileToCreate, FrontmatterResult, PickedFile, StackPreset, WorkflowPreset, lib, types
 - `codebase.md#flowforge-mobilestoresstorets` — User
   - **Keywords**: AppState, User, store, stores, useStore
+- `codebase.md#flowforge-servertestsroutesclonetestts` — createTestApp()
+  - **Keywords**: clone.test, createTestApp, postClone, routes
+- `codebase.md#flowforge-serverteststerminalsession-managertestts` — createMockPty()
+  - **Keywords**: createMockPty, createMockWs, session-manager.test, terminal
 - `codebase.md#flowforge-serversrcauthjwtts` — getSecret()
   - **Keywords**: auth, getSecret, jwt, sign, verify
 - `codebase.md#flowforge-serversrcauthmiddlewarets` — Request
