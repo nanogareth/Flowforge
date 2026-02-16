@@ -22,7 +22,7 @@ app.use((_req, res, next) => {
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   next();
 });
-app.options("*", (_req, res) => res.sendStatus(204));
+app.options("{*path}", (_req, res) => res.sendStatus(204));
 
 // Routes
 app.use(healthRouter);
