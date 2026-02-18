@@ -66,6 +66,7 @@ export async function createRepository(
       stack,
       name,
       description,
+      contextFile?.filename,
     );
 
     // Step 3b: Inject context file if provided
@@ -74,14 +75,6 @@ export async function createRepository(
         path: `context/${contextFile.filename}`,
         content: contextFile.content,
       });
-      const claudeMdIndex = files.findIndex((f) => f.path === "CLAUDE.md");
-      if (claudeMdIndex !== -1) {
-        files[claudeMdIndex].content +=
-          "\n\n---\n\n## Project Context\n\n" +
-          "This repository was initialized from an Obsidian note. The original content is preserved at:\n\n" +
-          `- \`@context/${contextFile.filename}\`\n\n` +
-          "Refer to this file for project background, requirements, or research notes.\n";
-      }
     }
 
     // Step 4: Create blobs for each file

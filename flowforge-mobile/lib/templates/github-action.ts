@@ -1,5 +1,4 @@
 import type { WorkflowPreset, FileToCreate } from "../types";
-import type { ClaudeMdSection } from "./claude-md";
 
 interface TriggerConfig {
   issueComment: boolean;
@@ -167,47 +166,6 @@ ${withBlock}
       content: yaml,
     },
   ];
-}
-
-export function getGitHubIntegrationSection(
-  workflow: WorkflowPreset,
-): ClaudeMdSection {
-  const triggers = TRIGGER_MATRIX[workflow];
-  const triggerDescriptions: string[] = [
-    "- Comment `@claude <request>` on any PR or issue",
-  ];
-
-  if (triggers.prOpened) {
-    triggerDescriptions.push("- Claude automatically reviews new PRs");
-  }
-
-  if (triggers.prReviewSubmitted) {
-    triggerDescriptions.push(
-      "- Claude responds to PR reviews requesting changes",
-    );
-  }
-
-  if (triggers.issueAssigned) {
-    triggerDescriptions.push(
-      "- Assign an issue to `claude` to trigger implementation",
-    );
-  }
-
-  if (triggers.labelAdded) {
-    triggerDescriptions.push(
-      "- Add the `claude` label to an issue for Claude to pick it up",
-    );
-  }
-
-  return {
-    heading: "## GitHub Integration",
-    content: `The \`@claude\` bot is active on this repository via the Claude GitHub App.
-
-Usage:
-${triggerDescriptions.join("\n")}`,
-    order: 65,
-    source: "platform",
-  };
 }
 
 // Exported for testing

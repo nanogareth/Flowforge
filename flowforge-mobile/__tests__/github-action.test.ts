@@ -1,8 +1,8 @@
 import {
   getGitHubActionFiles,
-  getGitHubIntegrationSection,
   TRIGGER_MATRIX,
 } from "../lib/templates/github-action";
+import { getGitHubIntegrationText } from "../lib/templates/claude-md";
 import { composeTemplate } from "../lib/templates/compose";
 import type { WorkflowPreset } from "../lib/types";
 
@@ -63,8 +63,6 @@ describe("GitHub Action Template", () => {
   });
 
   describe("Trigger matrix — workflow-specific triggers", () => {
-    // Use "  <trigger>:\n" pattern to match on: block triggers only,
-    // avoiding false matches with "permissions: issues: write" etc.
     it("research — includes issues trigger but not pull_request", () => {
       const [file] = getGitHubActionFiles("research");
       expect(file.content).toContain("  issues:\n");
@@ -165,37 +163,30 @@ describe("GitHub Action Template", () => {
   });
 });
 
-describe("GitHub Integration CLAUDE.md Section", () => {
-  it.each(ALL_WORKFLOWS)("%s — returns a section with order 65", (workflow) => {
-    const section = getGitHubIntegrationSection(workflow);
-    expect(section.heading).toBe("## GitHub Integration");
-    expect(section.order).toBe(65);
-    expect(section.source).toBe("platform");
-  });
-
+describe("GitHub Integration Text", () => {
   it.each(ALL_WORKFLOWS)("%s — always mentions @claude", (workflow) => {
-    const section = getGitHubIntegrationSection(workflow);
-    expect(section.content).toContain("@claude");
+    const text = getGitHubIntegrationText(workflow);
+    expect(text).toContain("@claude");
   });
 
   it("feature — mentions PR reviews", () => {
-    const section = getGitHubIntegrationSection("feature");
-    expect(section.content).toContain("reviews new PRs");
-    expect(section.content).toContain("reviews requesting changes");
+    const text = getGitHubIntegrationText("feature");
+    expect(text).toContain("reviews new PRs");
+    expect(text).toContain("reviews requesting changes");
   });
 
   it("research — mentions assign and label triggers", () => {
-    const section = getGitHubIntegrationSection("research");
-    expect(section.content).toContain("Assign an issue");
-    expect(section.content).toContain("`claude` label");
+    const text = getGitHubIntegrationText("research");
+    expect(text).toContain("Assign an issue");
+    expect(text).toContain("`claude` label");
   });
 
   it("learning — minimal triggers (only @claude mention)", () => {
-    const section = getGitHubIntegrationSection("learning");
-    expect(section.content).toContain("@claude");
-    expect(section.content).not.toContain("Assign");
-    expect(section.content).not.toContain("label");
-    expect(section.content).not.toContain("reviews new PRs");
+    const text = getGitHubIntegrationText("learning");
+    expect(text).toContain("@claude");
+    expect(text).not.toContain("Assign");
+    expect(text).not.toContain("label");
+    expect(text).not.toContain("reviews new PRs");
   });
 });
 

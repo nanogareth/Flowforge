@@ -1,34 +1,13 @@
 import type { WorkflowPreset, StackPreset, FileToCreate } from "../types";
-import { assembleClaudeMd, type ClaudeMdSection } from "./claude-md";
-import {
-  getPlatformFiles,
-  getPlatformClaudeMdSections,
-  getPlatformGitignore,
-} from "./platform";
-import { buildSettings } from "./settings";
-import { getDevcontainerFiles } from "./devcontainer";
-import {
-  getGitHubActionFiles,
-  getGitHubIntegrationSection,
-} from "./github-action";
-
-import * as researchWorkflow from "./workflows/research";
-import * as featureWorkflow from "./workflows/feature";
-import * as greenfieldWorkflow from "./workflows/greenfield";
-import * as learningWorkflow from "./workflows/learning";
+import { assembleClaudeMd } from "./claude-md";
+import { getPlatformGitignore } from "./platform";
+import { getGitHubActionFiles } from "./github-action";
 
 import * as typescriptReactStack from "./stacks/typescript-react";
 import * as typescriptNodeStack from "./stacks/typescript-node";
 import * as pythonStack from "./stacks/python";
 import * as rustStack from "./stacks/rust";
 import * as customStack from "./stacks/custom";
-
-const workflowModules = {
-  research: researchWorkflow,
-  feature: featureWorkflow,
-  greenfield: greenfieldWorkflow,
-  learning: learningWorkflow,
-} as const;
 
 const stackModules = {
   "typescript-react": typescriptReactStack,
@@ -43,51 +22,33 @@ export function composeTemplate(
   stack: StackPreset,
   name: string,
   description?: string,
+  contextFilename?: string,
 ): FileToCreate[] {
-  const wMod = workflowModules[workflow];
   const sMod = stackModules[stack];
 
-  // 1. Gather files from all three layers
-  const platformFiles = getPlatformFiles();
-  const workflowFiles = wMod.getWorkflowFiles(name, description);
-  const stackFiles = sMod.getStackFiles(name);
+  // 1. Assemble CLAUDE.md
+  const claudeMdContent = assembleClaudeMd({
+    name,
+    description: description || "",
+    workflow,
+    stack,
+    contextFilename,
+  });
 
-  // 2. Gather CLAUDE.md sections from all three layers
-  const sections: ClaudeMdSection[] = [
-    ...getPlatformClaudeMdSections(),
-    ...wMod.getWorkflowClaudeMdSections(),
-    ...sMod.getStackClaudeMdSections(),
-    getGitHubIntegrationSection(workflow),
-  ];
-
-  // 3. Assemble CLAUDE.md
-  const claudeMdContent = assembleClaudeMd(name, description || "", sections);
-
-  // 4. Merge .gitignore (platform base + stack additions, deduplicated)
+  // 2. Merge .gitignore (platform base + stack additions, deduplicated)
   const gitignoreContent = mergeGitignore(
     getPlatformGitignore(),
     sMod.getStackGitignore(),
   );
 
-  // 5. Build settings.json, devcontainer, and GitHub Action
-  const settingsContent = buildSettings(workflow, stack);
-  const devcontainerFiles = getDevcontainerFiles(stack, name);
+  // 3. GitHub Action workflow file
   const githubActionFiles = getGitHubActionFiles(workflow);
 
-  // 6. Combine all files
-  const allFiles: FileToCreate[] = [
-    ...platformFiles,
-    ...workflowFiles,
-    ...stackFiles,
-    ...devcontainerFiles,
-    ...githubActionFiles,
+  return [
     { path: "CLAUDE.md", content: claudeMdContent },
     { path: ".gitignore", content: gitignoreContent },
-    { path: ".claude/settings.json", content: settingsContent },
+    ...githubActionFiles,
   ];
-
-  // 7. Deduplicate by path (later sources win)
-  return deduplicateFiles(allFiles);
 }
 
 function mergeGitignore(platform: string, stack: string): string {
@@ -127,12 +88,4 @@ function mergeGitignore(platform: string, stack: string): string {
   }
 
   return cleaned.join("\n").trimEnd() + "\n";
-}
-
-function deduplicateFiles(files: FileToCreate[]): FileToCreate[] {
-  const map = new Map<string, FileToCreate>();
-  for (const file of files) {
-    map.set(file.path, file);
-  }
-  return Array.from(map.values());
 }
