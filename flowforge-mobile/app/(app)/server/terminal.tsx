@@ -1,13 +1,22 @@
 import { useRef } from "react";
-import { View, Text, Pressable } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useStore } from "../../../stores/store";
 import { getTerminalHtml } from "../../../lib/terminal-html";
+import TerminalToolbar from "../../../components/TerminalToolbar";
 
 export default function TerminalScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { sessionId, cwd, cmd } = useLocalSearchParams<{
     sessionId?: string;
     cwd?: string;
@@ -34,8 +43,12 @@ export default function TerminalScreen() {
 
   const html = getTerminalHtml(wsUrl);
 
-  return (
-    <SafeAreaView className="flex-1 bg-[#0a0a0a]">
+  const handleSendKey = (data: string) => {
+    webViewRef.current?.postMessage(JSON.stringify({ type: "key", data }));
+  };
+
+  const content = (
+    <>
       {/* Header Bar */}
       <View className="flex-row items-center px-4 py-2 border-b border-border">
         <Pressable onPress={() => router.back()} className="mr-4">
@@ -58,6 +71,20 @@ export default function TerminalScreen() {
         overScrollMode="never"
         textInteractionEnabled={false}
       />
+
+      <TerminalToolbar onSendKey={handleSendKey} bottomInset={insets.bottom} />
+    </>
+  );
+
+  return (
+    <SafeAreaView edges={["top"]} className="flex-1 bg-[#0a0a0a]">
+      {Platform.OS === "ios" ? (
+        <KeyboardAvoidingView behavior="padding" className="flex-1">
+          {content}
+        </KeyboardAvoidingView>
+      ) : (
+        <View className="flex-1">{content}</View>
+      )}
     </SafeAreaView>
   );
 }

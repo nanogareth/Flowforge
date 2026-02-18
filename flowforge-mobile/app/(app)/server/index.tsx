@@ -65,6 +65,15 @@ export default function ServerSettings() {
           </Pressable>
 
           <Pressable
+            onPress={() => router.push("/(app)/server/projects")}
+            className="py-4 rounded-lg items-center border border-primary active:bg-primary/10"
+          >
+            <Text className="text-primary text-lg font-semibold">
+              Browse Projects
+            </Text>
+          </Pressable>
+
+          <Pressable
             onPress={checkServerHealth}
             className="py-4 rounded-lg items-center border border-border active:border-primary"
           >

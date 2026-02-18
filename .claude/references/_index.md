@@ -13,7 +13,7 @@
 - `codebase.md#flowforge-mobiletestsgithub-actiontestts` — github-action.test
   - **Keywords**: ALL_WORKFLOWS, __tests__, github-action.test
 - `codebase.md#flowforge-mobiletestsgithubtestts` — github.test
-  - **Keywords**: HOOK_SCRIPTS, __tests__, github.test
+  - **Keywords**: ALL_STACKS, ALL_WORKFLOWS, __tests__, github.test
 - `codebase.md#flowforge-mobileappapplayouttsx` — AppLayout()
   - **Keywords**: (app), AppLayout, _layout
 - `codebase.md#flowforge-mobileappappcreatetypetsx` — FormData
@@ -26,10 +26,12 @@
   - **Keywords**: ServerSettings, index, server
 - `codebase.md#flowforge-mobileappappserverpairtsx` — PairScreen()
   - **Keywords**: PairScreen, pair, server
+- `codebase.md#flowforge-mobileappappserverprojectstsx` — formatRelativeTime()
+  - **Keywords**: ProjectsScreen, formatRelativeTime, projects, server
 - `codebase.md#flowforge-mobileappappserverterminaltsx` — TerminalScreen()
   - **Keywords**: TerminalScreen, server, terminal
-- `codebase.md#flowforge-mobileappappsuccesstsx` — Success()
-  - **Keywords**: (app), Success, success
+- `codebase.md#flowforge-mobileappappsuccesstsx` — Phase
+  - **Keywords**: (app), Phase, STEPS, StepInfo, Success, getPhaseFromMessage, phaseIndex, success
 - `codebase.md#flowforge-mobileapplayouttsx` — RootLayout()
   - **Keywords**: RootLayout, _layout, app
 - `codebase.md#flowforge-mobileappindextsx` — Index()
@@ -38,48 +40,38 @@
   - **Keywords**: Login, app, login
 - `codebase.md#flowforge-mobilecomponentscopyableerrortsx` — CopyableErrorProps
   - **Keywords**: CopyableError, CopyableErrorProps, components
+- `codebase.md#flowforge-mobilecomponentsterminaltoolbartsx` — TerminalToolbarProps
+  - **Keywords**: CTRL_COMBOS, KEYS, TerminalToolbar, TerminalToolbarProps, components
 - `codebase.md#flowforge-mobilelibauthts` — useGitHubAuth()
   - **Keywords**: GITHUB_CLIENT_ID, TOKEN_ENDPOINT, TOKEN_KEY, auth, clearToken, exchangeCodeForToken, getToken, lib, saveToken, useGitHubAuth
-- `codebase.md#flowforge-mobilelibclaude-code-appts` — ClaudeCodeSetupResult
-  - **Keywords**: ClaudeCodeSetupResult, claude-code-app, lib, setupClaudeCode
 - `codebase.md#flowforge-mobilelibfrontmatterts` — parseYamlValue()
   - **Keywords**: FRONTMATTER_REGEX, VALID_STACKS, VALID_WORKFLOWS, filenameToRepoName, frontmatter, lib, parseBooleanish, parseFrontmatter, parseYamlValue
 - `codebase.md#flowforge-mobilelibgithubts` — toBase64()
   - **Keywords**: MIN_CREATION_INTERVAL, createRepository, deleteRepository, github, isValidRepoName, lib, toBase64
-- `codebase.md#flowforge-mobilelibserver-apits` — cloneAndLaunch()
-  - **Keywords**: cloneAndLaunch, lib, server-api
+- `codebase.md#flowforge-mobilelibserver-apits` — Project
+  - **Keywords**: CloneProgress, Project, cloneAndLaunch, fetchProjects, lib, server-api
 - `codebase.md#flowforge-mobilelibserver-authts` — saveServerCredentials()
-  - **Keywords**: SERVER_TOKEN_KEY, SERVER_URL_KEY, checkHealth, clearServerCredentials, getServerCredentials, lib, pairWithServer, saveServerCredentials, server-auth
-- `codebase.md#flowforge-mobilelibtemplatesclaude-mdts` — ClaudeMdSection
-  - **Keywords**: ClaudeMdSection, assembleClaudeMd, claude-md, templates
+  - **Keywords**: SERVER_TAILSCALE_URL_KEY, SERVER_TOKEN_KEY, SERVER_URL_KEY, checkHealth, clearServerCredentials, clearTailscaleUrl, getServerCredentials, getTailscaleUrl, lib, pairWithServer
+- `codebase.md#flowforge-mobilelibtailscalets` — TailscaleInfo
+  - **Keywords**: TailscaleInfo, buildServerUrl, checkTailscaleReachable, discoverServer, lib, tailscale
+- `codebase.md#flowforge-mobilelibtemplatesclaude-mdts` — ClaudeMdOptions
+  - **Keywords**: ClaudeMdOptions, STACK_HINTS, WORKFLOW_INSTRUCTIONS, assembleClaudeMd, claude-md, getGitHubIntegrationText, templates
 - `codebase.md#flowforge-mobilelibtemplatescomposets` — composeTemplate()
-  - **Keywords**: compose, composeTemplate, deduplicateFiles, mergeGitignore, templates
-- `codebase.md#flowforge-mobilelibtemplatesdevcontainerts` — DevcontainerJson
-  - **Keywords**: BASE_EXTENSIONS, DevcontainerJson, STACK_CONFIG, devcontainer, getDevcontainerFiles, templates
+  - **Keywords**: compose, composeTemplate, mergeGitignore, templates
 - `codebase.md#flowforge-mobilelibtemplatesgithub-actionts` — TriggerConfig
-  - **Keywords**: TRIGGER_MATRIX, TriggerConfig, buildIfCondition, buildOnBlock, buildWithBlock, getGitHubActionFiles, getGitHubIntegrationSection, github-action, templates
-- `codebase.md#flowforge-mobilelibtemplatesplatformts` — getPlatformFiles()
-  - **Keywords**: getPlatformClaudeMdSections, getPlatformFiles, getPlatformGitignore, platform, templates
-- `codebase.md#flowforge-mobilelibtemplatessettingsts` — HookEntry
-  - **Keywords**: HOOK_DIR, HookEntry, HookMatcher, STACK_ENV, SettingsJson, TDD_WORKFLOWS, buildSettings, settings, templates
-- `codebase.md#flowforge-mobilelibtemplatesstackscustomts` — getStackFiles()
-  - **Keywords**: custom, getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks
-- `codebase.md#flowforge-mobilelibtemplatesstackspythonts` — getStackFiles()
-  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, python, stacks
-- `codebase.md#flowforge-mobilelibtemplatesstacksrustts` — getStackFiles()
-  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, rust, stacks
-- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-nodets` — getStackFiles()
-  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks, typescript-node
-- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-reactts` — getStackFiles()
-  - **Keywords**: getStackClaudeMdSections, getStackFiles, getStackGitignore, stacks, typescript-react
-- `codebase.md#flowforge-mobilelibtemplatesworkflowsfeaturets` — getWorkflowFiles()
-  - **Keywords**: feature, getWorkflowClaudeMdSections, getWorkflowFiles, workflows
-- `codebase.md#flowforge-mobilelibtemplatesworkflowsgreenfieldts` — getWorkflowFiles()
-  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, greenfield, workflows
-- `codebase.md#flowforge-mobilelibtemplatesworkflowslearningts` — getWorkflowFiles()
-  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, learning, workflows
-- `codebase.md#flowforge-mobilelibtemplatesworkflowsresearchts` — getWorkflowFiles()
-  - **Keywords**: getWorkflowClaudeMdSections, getWorkflowFiles, research, workflows
+  - **Keywords**: TRIGGER_MATRIX, TriggerConfig, buildIfCondition, buildOnBlock, buildWithBlock, getGitHubActionFiles, github-action, templates
+- `codebase.md#flowforge-mobilelibtemplatesplatformts` — getPlatformGitignore()
+  - **Keywords**: getPlatformGitignore, platform, templates
+- `codebase.md#flowforge-mobilelibtemplatesstackscustomts` — getStackGitignore()
+  - **Keywords**: custom, getStackGitignore, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstackspythonts` — getStackGitignore()
+  - **Keywords**: getStackGitignore, python, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstacksrustts` — getStackGitignore()
+  - **Keywords**: getStackGitignore, rust, stacks
+- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-nodets` — getStackGitignore()
+  - **Keywords**: getStackGitignore, stacks, typescript-node
+- `codebase.md#flowforge-mobilelibtemplatesstackstypescript-reactts` — getStackGitignore()
+  - **Keywords**: getStackGitignore, stacks, typescript-react
 - `codebase.md#flowforge-mobilelibterminal-htmlts` — getTerminalHtml()
   - **Keywords**: getTerminalHtml, lib, terminal-html
 - `codebase.md#flowforge-mobilelibtypests` — WorkflowPreset
@@ -88,6 +80,10 @@
   - **Keywords**: AppState, User, store, stores, useStore
 - `codebase.md#flowforge-servertestsroutesclonetestts` — getHandler()
   - **Keywords**: clone.test, createMockReq, createMockRes, getHandler, routes, setupMockProcess
+- `codebase.md#flowforge-servertestsroutesprojectstestts` — getHandler()
+  - **Keywords**: createMockReq, createMockRes, getHandler, projects.test, routes
+- `codebase.md#flowforge-servertestsroutestailscaletestts` — getHandler()
+  - **Keywords**: createMockReq, createMockRes, getHandler, routes, tailscale.test
 - `codebase.md#flowforge-serverteststerminalsession-managertestts` — createMockPty()
   - **Keywords**: createMockPty, createMockWs, session-manager.test, terminal
 - `codebase.md#flowforge-serversrcauthjwtts` — getSecret()
@@ -96,14 +92,16 @@
   - **Keywords**: Request, auth, authMiddleware, middleware
 - `codebase.md#flowforge-serversrcauthpairingts` — generatePairingCode()
   - **Keywords**: auth, generatePairingCode, pairing, validatePairingCode
-- `codebase.md#flowforge-serversrcconfigts` — config()
-  - **Keywords**: config, src
 - `codebase.md#flowforge-serversrcroutesclonets` — cloneRouter()
-  - **Keywords**: clone, cloneRouter, routes
+  - **Keywords**: INIT_TIMEOUT_MS, PROMPT_PATTERNS, clone, cloneRouter, routes
 - `codebase.md#flowforge-serversrcrouteshealthts` — markPaired()
-  - **Keywords**: health, isPaired, markPaired, routes, setSessionCountFn
+  - **Keywords**: getTailscaleIp, health, isPaired, markPaired, routes, setSessionCountFn
 - `codebase.md#flowforge-serversrcroutespairts` — isRateLimited()
   - **Keywords**: isRateLimited, pair, routes
+- `codebase.md#flowforge-serversrcroutesprojectsts` — projectsRouter()
+  - **Keywords**: projects, projectsRouter, routes
+- `codebase.md#flowforge-serversrcroutestailscalets` — TailscaleStatus
+  - **Keywords**: TailscaleStatus, getTailscaleStatus, routes, tailscale, tailscaleRouter
 - `codebase.md#flowforge-serversrcterminalsession-managerts` — broadcast()
   - **Keywords**: appendScrollback, attachClient, broadcast, createSession, destroySession, detachClient, getSession, getSessionCount, session-manager, startGarbageCollector
 - `codebase.md#flowforge-serversrcterminalws-handlerts` — handleWebSocket()

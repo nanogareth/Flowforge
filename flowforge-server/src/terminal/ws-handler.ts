@@ -1,7 +1,9 @@
 import type { IncomingMessage } from "http";
 import type { WebSocket } from "ws";
 import { URL } from "url";
+import path from "path";
 import { verify } from "../auth/jwt";
+import { config } from "../config";
 import {
   createSession,
   getSession,
@@ -32,7 +34,26 @@ export function handleWebSocket(ws: WebSocket, req: IncomingMessage): void {
 
   // Route: /terminal — new session
   if (pathname === "/terminal") {
-    const session = createSession();
+    const cwdParam = url.searchParams.get("cwd") || undefined;
+    const cmdParam = url.searchParams.get("cmd") || undefined;
+
+    // Validate cwd is within cloneDir if provided
+    if (cwdParam) {
+      const resolved = path.resolve(cwdParam);
+      const cloneDir = path.resolve(config.cloneDir);
+      if (!resolved.startsWith(cloneDir)) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "cwd outside allowed directory",
+          }),
+        );
+        ws.close(4003, "cwd outside allowed directory");
+        return;
+      }
+    }
+
+    const session = createSession({ cwd: cwdParam, cmd: cmdParam });
     if (!session) {
       ws.send(
         JSON.stringify({ type: "error", message: "Max sessions reached" }),
@@ -41,6 +62,7 @@ export function handleWebSocket(ws: WebSocket, req: IncomingMessage): void {
       return;
     }
 
+    ws.send(JSON.stringify({ type: "session", id: session.id }));
     attachClient(session.id, ws);
     wireSession(ws, session.id);
     return;

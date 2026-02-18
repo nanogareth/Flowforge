@@ -2,6 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 const SERVER_URL_KEY = "home_server_url";
 const SERVER_TOKEN_KEY = "home_server_token";
+const SERVER_TAILSCALE_URL_KEY = "home_server_tailscale_url";
 
 export async function saveServerCredentials(
   url: string,
@@ -24,6 +25,19 @@ export async function getServerCredentials(): Promise<{
 export async function clearServerCredentials(): Promise<void> {
   await SecureStore.deleteItemAsync(SERVER_URL_KEY);
   await SecureStore.deleteItemAsync(SERVER_TOKEN_KEY);
+  await SecureStore.deleteItemAsync(SERVER_TAILSCALE_URL_KEY);
+}
+
+export async function saveTailscaleUrl(url: string): Promise<void> {
+  await SecureStore.setItemAsync(SERVER_TAILSCALE_URL_KEY, url);
+}
+
+export async function getTailscaleUrl(): Promise<string | null> {
+  return SecureStore.getItemAsync(SERVER_TAILSCALE_URL_KEY);
+}
+
+export async function clearTailscaleUrl(): Promise<void> {
+  await SecureStore.deleteItemAsync(SERVER_TAILSCALE_URL_KEY);
 }
 
 export async function pairWithServer(

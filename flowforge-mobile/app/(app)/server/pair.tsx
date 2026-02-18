@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStore } from "../../../stores/store";
 import { pairWithServer } from "../../../lib/server-auth";
+import { discoverServer, buildServerUrl } from "../../../lib/tailscale";
 import CopyableError from "../../../components/CopyableError";
 
 export default function PairScreen() {
@@ -19,12 +20,45 @@ export default function PairScreen() {
   const { setHomeServer } = useStore();
 
   const [serverUrl, setServerUrl] = useState("");
+  const [tailscaleInput, setTailscaleInput] = useState("");
   const [code, setCode] = useState("");
   const [isPairing, setIsPairing] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [discoveryInfo, setDiscoveryInfo] = useState<string | null>(null);
 
   const isValid =
     serverUrl.startsWith("http") && serverUrl.length > 10 && code.length === 6;
+
+  const handleDiscover = async () => {
+    if (!tailscaleInput.trim()) return;
+
+    setIsDiscovering(true);
+    setError(null);
+    setDiscoveryInfo(null);
+
+    try {
+      const probeUrl = buildServerUrl(tailscaleInput);
+      const info = await discoverServer(probeUrl);
+
+      if (info.available && info.ip) {
+        const tsUrl = `http://${info.ip}:${info.serverPort}`;
+        setServerUrl(tsUrl);
+        setDiscoveryInfo(
+          `Found: ${info.hostname || info.ip} (${info.ip}:${info.serverPort})`,
+        );
+      } else {
+        setError("Tailscale is not available on this server");
+      }
+    } catch (err) {
+      // Fallback: use the input directly as server URL
+      const fallbackUrl = buildServerUrl(tailscaleInput);
+      setServerUrl(fallbackUrl);
+      setDiscoveryInfo(`Using ${fallbackUrl} (discovery unavailable)`);
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
 
   const handlePair = async () => {
     if (!isValid) return;
@@ -34,7 +68,20 @@ export default function PairScreen() {
 
     try {
       const token = await pairWithServer(serverUrl, code);
-      await setHomeServer(serverUrl.replace(/\/+$/, ""), token);
+      const normalizedUrl = serverUrl.replace(/\/+$/, "");
+
+      // Auto-discover Tailscale URL for failover
+      let tailscaleUrl: string | undefined;
+      try {
+        const info = await discoverServer(normalizedUrl);
+        if (info.available && info.ip) {
+          tailscaleUrl = `http://${info.ip}:${info.serverPort}`;
+        }
+      } catch {
+        // Tailscale discovery is optional — ignore errors
+      }
+
+      await setHomeServer(normalizedUrl, token, tailscaleUrl);
       router.replace("/(app)/server");
     } catch (err) {
       setError(
@@ -71,6 +118,47 @@ export default function PairScreen() {
 
           {/* Form */}
           <View className="gap-5">
+            {/* Tailscale Discovery */}
+            <View>
+              <Text className="text-white text-base font-medium mb-2">
+                Tailscale Hostname or IP
+              </Text>
+              <View className="flex-row gap-2">
+                <TextInput
+                  value={tailscaleInput}
+                  onChangeText={setTailscaleInput}
+                  placeholder="my-pc or 100.64.x.x"
+                  placeholderTextColor="#6b7280"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  className="flex-1 bg-surface border border-border rounded-lg px-4 py-3 text-white text-base"
+                />
+                <Pressable
+                  onPress={handleDiscover}
+                  disabled={isDiscovering || !tailscaleInput.trim()}
+                  className={`px-4 rounded-lg items-center justify-center ${
+                    !isDiscovering && tailscaleInput.trim()
+                      ? "bg-primary active:bg-primary-hover"
+                      : "bg-gray-700 opacity-50"
+                  }`}
+                >
+                  {isDiscovering ? (
+                    <ActivityIndicator color="#ffffff" size="small" />
+                  ) : (
+                    <Text className="text-white font-semibold">Discover</Text>
+                  )}
+                </Pressable>
+              </View>
+              {discoveryInfo && (
+                <Text className="text-green-400 text-sm mt-1">
+                  {discoveryInfo}
+                </Text>
+              )}
+              <Text className="text-gray-500 text-xs mt-1">
+                Auto-fills server URL via Tailscale, or enter URL manually below
+              </Text>
+            </View>
+
             {/* Server URL */}
             <View>
               <Text className="text-white text-base font-medium mb-2">

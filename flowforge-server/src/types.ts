@@ -19,6 +19,7 @@ export type ClientMessage =
 
 // Server → Client
 export type ServerMessage =
+  | { type: "session"; id: string }
   | { type: "output"; data: string }
   | { type: "scrollback"; data: string }
   | { type: "exit"; code: number }

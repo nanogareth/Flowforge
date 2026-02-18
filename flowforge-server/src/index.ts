@@ -6,6 +6,8 @@ import { generatePairingCode } from "./auth/pairing";
 import { healthRouter, setSessionCountFn } from "./routes/health";
 import { pairRouter } from "./routes/pair";
 import { cloneRouter } from "./routes/clone";
+import { tailscaleRouter } from "./routes/tailscale";
+import { projectsRouter } from "./routes/projects";
 import { handleWebSocket } from "./terminal/ws-handler";
 import {
   getSessionCount,
@@ -28,6 +30,8 @@ app.options("{*path}", (_req, res) => res.sendStatus(204));
 app.use(healthRouter);
 app.use(pairRouter);
 app.use(cloneRouter);
+app.use(tailscaleRouter);
+app.use(projectsRouter);
 
 // Wire session count into health endpoint
 setSessionCountFn(getSessionCount);

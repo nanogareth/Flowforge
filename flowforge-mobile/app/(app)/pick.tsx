@@ -16,7 +16,6 @@ import { useStore } from "../../stores/store";
 import CopyableError from "../../components/CopyableError";
 import { parseFrontmatter, filenameToRepoName } from "../../lib/frontmatter";
 import { createRepository, isValidRepoName } from "../../lib/github";
-import { setupClaudeCode } from "../../lib/claude-code-app";
 import type { FrontmatterResult, WorkflowPreset } from "../../lib/types";
 
 const MAX_FILE_SIZE = 500 * 1024; // 500KB
@@ -40,7 +39,7 @@ type PickState =
 
 export default function PickScreen() {
   const router = useRouter();
-  const { token, setLastCreatedRepo, setClaudeCodeState } = useStore();
+  const { token, setLastCreatedRepo } = useStore();
 
   const [state, setState] = useState<PickState | null>(null);
   const [repoName, setRepoName] = useState("");
@@ -142,11 +141,6 @@ export default function PickScreen() {
     }
 
     setLastCreatedRepo(result.repo);
-
-    // Enable Claude Code (non-blocking)
-    const ccResult = setupClaudeCode();
-    setClaudeCodeState(ccResult.configureUrl);
-
     router.replace("/(app)/success");
   };
 

@@ -2,8 +2,8 @@
 
 > FlowForge's role as project scaffolder and command center, plus the template composition system.
 
-**Status:** v3.2 — Obsidian import flow, Claude Code GitHub App integration, dual-flow home screen
-**Date:** 2026-02-15
+**Status:** v3.3 — Obsidian import flow, auto clone+init, remote terminal with Tailscale failover, project browsing
+**Date:** 2026-02-17
 
 ---
 
@@ -11,7 +11,7 @@
 
 FlowForge is a React Native (Expo) mobile app that creates GitHub repositories pre-configured with CLAUDE.md templates and a full Claude Code (CC) automation layer.
 
-**Current state:** FlowForge scaffolds fully operational CC environments via a three-layer template composition system (`flowforge-mobile/lib/templates/`). The home screen offers two creation paths: **Import from Obsidian** (pick a markdown file, auto-configure workflow/stack from frontmatter) and **Create Manually** (choose from hardcoded templates). Both paths create a GitHub repo with 30+ files via the Octokit Git Data API (blob → tree → commit → ref). The repo ships with hook scripts, `.claude/settings.json` (hook wiring + env vars), `.devcontainer/`, slash commands, reference library skeleton, and a fully assembled `CLAUDE.md`. After repo creation, FlowForge attempts to enable the Claude Code GitHub App for the new repo (non-blocking). Any CC instance that clones the repo inherits the full automation layer.
+**Current state:** FlowForge scaffolds fully operational CC environments via a three-layer template composition system (`flowforge-mobile/lib/templates/`). The home screen offers two creation paths: **Import from Obsidian** (pick a markdown file, auto-configure workflow/stack from frontmatter) and **Create Manually** (choose from hardcoded templates). Both paths create a GitHub repo with 30+ files via the Octokit Git Data API (blob → tree → commit → ref). The repo ships with hook scripts, `.claude/settings.json` (hook wiring + env vars), `.devcontainer/`, slash commands, reference library skeleton, and a fully assembled `CLAUDE.md`. After repo creation, when a home server is connected, FlowForge automatically clones the repo, launches Claude Code, and runs `/init` — all with streaming progress. The terminal supports Tailscale failover for remote access. Any CC instance that clones the repo inherits the full automation layer.
 
 **Next:** FlowForge evolves into a project command center. Two remaining moves:
 
@@ -54,8 +54,8 @@ FlowForge's primary creation path imports a markdown file (typically from an Obs
 2. **Parse frontmatter** — `parseFrontmatter()` extracts workflow, stack, visibility, and description from YAML frontmatter block; `filenameToRepoName()` auto-derives a repo name from the filename
 3. **Review & edit** — User sees inferred settings (workflow, stack) and can edit the repo name, description, and private toggle before creating
 4. **Create repo** — `createRepository()` composes template files via `composeTemplate(workflow, stack, name, description)`, injects the original file as a context file, and pushes everything via the Git Data API
-5. **Enable Claude Code** — `setupClaudeCode()` attempts to add the repo to the user's Claude Code GitHub App installation (non-blocking)
-6. **Success screen** — Shows repo info, Claude Code status, clone command, and "Open Claude Code" button
+5. **Auto clone+init** — If a home server is connected, the success screen auto-triggers clone → launch Claude → run `/init` with real-time progress
+6. **Success screen** — Shows step-by-step progress (cloning → launching → initializing → done) with "Open Terminal" button, or manual clone instructions if no server
 
 ### Frontmatter Format
 
@@ -97,31 +97,31 @@ When a file is imported, `createRepository()` in `lib/github.ts` injects the ori
 
 ---
 
-## 4. Claude Code GitHub App Integration
+## 4. Auto Clone + Init Flow
 
-After repo creation, FlowForge attempts to enable the Claude Code GitHub App for the new repository. This allows Claude Code to access the repo directly from `claude.ai/code`.
+After repo creation, when a home server is connected, the success screen automatically triggers a clone → Claude launch → `/init` pipeline on the server.
 
-**Implemented in:** `flowforge-mobile/lib/claude-code-app.ts`
+**Implemented in:** `flowforge-mobile/app/(app)/success.tsx`, `flowforge-mobile/lib/server-api.ts`
 
-### Functions
+### Pipeline
 
-- `setupClaudeCode(token, repoId)` — Orchestrator. Finds the user's Claude Code app installation, then adds the repo to it. Returns a `ClaudeCodeSetupResult` with status and messaging.
-- `findClaudeCodeInstallation(token)` — Queries `octokit.apps.listInstallationsForAuthenticatedUser()` looking for the app with slug `"claude"`. Returns the installation ID or `null`.
-- `enableClaudeCodeForRepo(token, installationId, repoId)` — Calls `octokit.apps.addRepoToInstallationForAuthenticatedUser()` to grant the Claude Code app access to the specific repo.
+1. **Clone** — `POST /api/clone` with `{ cloneUrl, launchClaude: true, runInit: true }` streams NDJSON progress
+2. **Launch Claude** — Server creates a terminal session with `claude` as the command in the cloned repo directory
+3. **Run /init** — Server monitors pty output for prompt patterns, then sends `/init\r` to auto-configure the project
+4. **Done** — Returns a `sessionId` the mobile app can use to open the terminal
 
-### Behaviour
+### Success Screen
 
-The setup is **non-blocking** — if it fails, the repo is still created successfully. The success screen shows one of three states:
+The success screen (`success.tsx`) shows a step-by-step progress UI with four phases:
 
-| State         | Display                                                                                 |
-| ------------- | --------------------------------------------------------------------------------------- |
-| Enabled       | Green badge: "Claude Code enabled for this repository"                                  |
-| Not installed | Card with link to `github.com/apps/claude`: "Tap to install the Claude Code GitHub App" |
-| Error         | Same card with install link as fallback                                                 |
+| Phase          | Display                            |
+| -------------- | ---------------------------------- |
+| `cloning`      | Spinner + "Cloning repository..."  |
+| `launching`    | Spinner + "Launching Claude..."    |
+| `initializing` | Spinner + "Running /init..."       |
+| `done`         | Checkmark + "Open Terminal" button |
 
-### Store Integration
-
-The Zustand store tracks Claude Code state via `claudeCodeEnabled` (boolean) and `claudeCodeError` (string | null), set by `setClaudeCodeState()` and cleared by `resetCreationState()`.
+On error, the user can retry or fall back to manual instructions. When no server is connected, the screen shows the clone command and manual setup instructions.
 
 ---
 
@@ -1139,7 +1139,7 @@ _FlowForge impact: Slash commands and reference structure templates are now read
 **New completed items (not in original sequence):**
 
 19. ~~**Obsidian import flow**~~ ✅ -- file picker, frontmatter parsing (`lib/frontmatter.ts`), context file injection, review/edit screen. See section 3.
-20. ~~**Claude Code GitHub App integration**~~ ✅ -- `lib/claude-code-app.ts` enables Claude Code for new repos post-creation. See section 4.
+20. ~~**Auto clone + init**~~ ✅ -- Success screen auto-clones, launches Claude, runs `/init` via home server. See section 4. (Replaced Claude Code GitHub App integration.)
 21. ~~**Dual-flow home screen**~~ ✅ -- "Import from Obsidian" + "Create Manually" buttons on home screen. See section 10.
 
 ### Sprint 5: Validation and Refinement
@@ -1191,5 +1191,7 @@ Carried forward from the research document plus new questions specific to the Fl
 - **Types**: `flowforge-mobile/lib/types.ts` — `WorkflowPreset`, `StackPreset`, `FileToCreate`, `PickedFile`, `FrontmatterResult`, `CreateRepoOptions`, `CreatedRepo`, `WorkflowMeta`, `StackMeta`
 - **GitHub API integration**: `flowforge-mobile/lib/github.ts` — `createRepository()`, `deleteRepository()`, `isValidRepoName()`
 - **Frontmatter parsing**: `flowforge-mobile/lib/frontmatter.ts` — `parseFrontmatter()`, `filenameToRepoName()`
-- **Claude Code GitHub App**: `flowforge-mobile/lib/claude-code-app.ts` — `setupClaudeCode()`, `findClaudeCodeInstallation()`, `enableClaudeCodeForRepo()`
+- **Server API client**: `flowforge-mobile/lib/server-api.ts` — `cloneAndLaunch()`, `fetchProjects()`
+- **Tailscale discovery**: `flowforge-mobile/lib/tailscale.ts` — `discoverServer()`, `buildServerUrl()`, `checkTailscaleReachable()`
+- **Server auth**: `flowforge-mobile/lib/server-auth.ts` — `pairWithServer()`, `checkHealth()`, `saveTailscaleUrl()`, `getTailscaleUrl()`
 - **Error display**: `flowforge-mobile/components/CopyableError.tsx` — reusable error component with tap-to-copy

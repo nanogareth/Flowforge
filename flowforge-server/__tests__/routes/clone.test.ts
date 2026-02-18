@@ -285,6 +285,131 @@ describe("clone route", () => {
       expect(errorLine.message).toMatch(/max sessions/);
     });
 
+    it("should create a terminal session with runInit and detect prompt", () => {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
+        stderr: new EventEmitter(),
+        stdout: new EventEmitter(),
+      });
+      mockSpawn.mockReturnValue(proc);
+
+      const mockDisposable = { dispose: jest.fn() };
+      const mockPty = {
+        onData: jest.fn().mockReturnValue(mockDisposable),
+        write: jest.fn(),
+      };
+      mockCreateSession.mockReturnValue({
+        id: "session-init",
+        pty: mockPty,
+      });
+
+      const req = createMockReq({
+        cloneUrl: "https://github.com/user/repo.git",
+        launchClaude: true,
+        runInit: true,
+      });
+      const res = createMockRes();
+
+      handler(req, res);
+      proc.emit("close", 0);
+
+      // Verify pty.onData was called to monitor output
+      expect(mockPty.onData).toHaveBeenCalled();
+
+      // Simulate prompt detection
+      const onDataCallback = mockPty.onData.mock.calls[0][0];
+      onDataCallback("claude ❯ ");
+
+      // Verify /init was sent
+      expect(mockPty.write).toHaveBeenCalledWith("/init\r");
+      expect(mockDisposable.dispose).toHaveBeenCalled();
+
+      const lines = res.ndjsonLines;
+      expect(
+        lines.some(
+          (l: { type: string; message?: string }) =>
+            l.message === "Running /init...",
+        ),
+      ).toBe(true);
+      const doneLine = lines.find((l: { type: string }) => l.type === "done");
+      expect(doneLine.sessionId).toBe("session-init");
+    });
+
+    it("should send /init after timeout if no prompt detected", () => {
+      jest.useFakeTimers();
+
+      const proc = new EventEmitter();
+      Object.assign(proc, {
+        stderr: new EventEmitter(),
+        stdout: new EventEmitter(),
+      });
+      mockSpawn.mockReturnValue(proc);
+
+      const mockDisposable = { dispose: jest.fn() };
+      const mockPty = {
+        onData: jest.fn().mockReturnValue(mockDisposable),
+        write: jest.fn(),
+      };
+      mockCreateSession.mockReturnValue({
+        id: "session-timeout",
+        pty: mockPty,
+      });
+
+      const req = createMockReq({
+        cloneUrl: "https://github.com/user/repo.git",
+        launchClaude: true,
+        runInit: true,
+      });
+      const res = createMockRes();
+
+      handler(req, res);
+      proc.emit("close", 0);
+
+      // No prompt emitted — advance past timeout
+      jest.advanceTimersByTime(30000);
+
+      expect(mockPty.write).toHaveBeenCalledWith("/init\r");
+      expect(mockDisposable.dispose).toHaveBeenCalled();
+
+      jest.useRealTimers();
+    });
+
+    it("should not run /init when runInit is false", () => {
+      const proc = new EventEmitter();
+      Object.assign(proc, {
+        stderr: new EventEmitter(),
+        stdout: new EventEmitter(),
+      });
+      mockSpawn.mockReturnValue(proc);
+
+      const mockPty = {
+        onData: jest.fn(),
+        write: jest.fn(),
+      };
+      mockCreateSession.mockReturnValue({
+        id: "session-noinit",
+        pty: mockPty,
+      });
+
+      const req = createMockReq({
+        cloneUrl: "https://github.com/user/repo.git",
+        launchClaude: true,
+        runInit: false,
+      });
+      const res = createMockRes();
+
+      handler(req, res);
+      proc.emit("close", 0);
+
+      expect(mockPty.onData).not.toHaveBeenCalled();
+      expect(mockPty.write).not.toHaveBeenCalled();
+
+      const doneLine = res.ndjsonLines.find(
+        (l: { type: string }) => l.type === "done",
+      );
+      expect(doneLine.sessionId).toBe("session-noinit");
+    });
+
     it("should not create session when launchClaude is false", () => {
       const proc = new EventEmitter();
       Object.assign(proc, {

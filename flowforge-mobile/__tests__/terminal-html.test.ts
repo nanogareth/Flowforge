@@ -22,9 +22,9 @@ describe("getTerminalHtml", () => {
     expect(html).toContain("addon-fit.min.js");
   });
 
-  it("should embed the WebSocket URL", () => {
+  it("should embed the WebSocket URL as BASE_URL", () => {
     expect(html).toContain(wsUrl);
-    expect(html).toContain(`new WebSocket('${wsUrl}')`);
+    expect(html).toContain(`const BASE_URL = '${wsUrl}'`);
   });
 
   it("should configure terminal with dark theme", () => {
@@ -61,5 +61,19 @@ describe("getTerminalHtml", () => {
 
   it("should disable user scaling", () => {
     expect(html).toContain("user-scalable=no");
+  });
+
+  it("should include postMessage handler for toolbar keys", () => {
+    expect(html).toContain("handleNativeMessage");
+    expect(html).toContain("type === 'key'");
+  });
+
+  it("should listen for messages on both window and document", () => {
+    expect(html).toContain("window.addEventListener('message'");
+    expect(html).toContain("document.addEventListener('message'");
+  });
+
+  it("should forward key messages to WebSocket as input", () => {
+    expect(html).toContain("type: 'input', data: msg.data");
   });
 });

@@ -43,9 +43,15 @@ npm start              # Run compiled JS
 
 **Repo creation flow (`lib/github.ts`):** Creates empty repo → generates template files via `composeTemplate()` → creates git blobs → creates tree → creates commit → creates main branch → sets default branch. On failure, `deleteRepository()` provides cleanup.
 
-**Remote terminal flow (`flowforge-server/`):** Mobile pairs with home server via 6-digit code → receives JWT → stores in SecureStore. Can clone repos via `POST /api/clone` (NDJSON streaming progress) and open interactive terminal via WebSocket (`/terminal`). Terminal uses node-pty with xterm.js in a WebView. Sessions support reconnection (50KB scrollback), multi-client broadcast, and 30-min inactivity GC.
+**Remote terminal flow (`flowforge-server/`):** Mobile pairs with home server via 6-digit code → receives JWT → stores in SecureStore. Supports Tailscale for secure remote access (`GET /api/tailscale` for discovery, pairing screen auto-fills Tailscale URL). Can clone repos via `POST /api/clone` (NDJSON streaming progress, `runInit` flag auto-sends `/init` to Claude after launch) and open interactive terminal via WebSocket (`/terminal`). WebSocket accepts `cwd` and `cmd` query params to launch into a specific directory/command (path-traversal validated against `cloneDir`). Server sends `{ type: "session", id }` on connect for reconnection. Terminal uses node-pty with xterm.js in a WebView with keyboard toolbar (ESC, Tab, Ctrl combos, arrows). Sessions support auto-reconnect (exponential backoff, session ID tracking), 50KB scrollback, multi-client broadcast, and 30-min inactivity GC.
 
-**State:** Single Zustand store (`stores/store.ts`) manages auth state, user info, last created repo, and home server connection state.
+**Project browsing:** `GET /api/projects` (auth-protected) scans `cloneDir` for git repos, returns name/path/hasClaudeMd/lastModified. Mobile projects screen lists them with pull-to-refresh; tapping a project opens terminal with `cwd` set to project dir and `cmd=claude`.
+
+**Auto clone+init flow:** After repo creation, success screen auto-starts: clone → launch Claude → run /init (if server connected). Progress shown as step-by-step UI. Falls back to manual instructions if no server.
+
+**Tailscale failover:** Store persists `homeServerTailscaleUrl` in SecureStore. `checkServerHealth()` tries primary URL first; if unreachable and a Tailscale URL exists, tries that and swaps it as the new primary on success.
+
+**State:** Single Zustand store (`stores/store.ts`) manages auth state, user info, last created repo, home server connection state, and Tailscale failover URL.
 
 **Routing:** Expo Router file-based routing. `app/(app)/` group is auth-guarded. `app/login.tsx` handles unauthenticated state.
 
@@ -66,4 +72,4 @@ Mobile (`.env`): `EXPO_PUBLIC_GITHUB_CLIENT_ID`, `EXPO_PUBLIC_TOKEN_ENDPOINT`, `
 
 Backend (Vercel env): `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
-Terminal Server (`.env`): `PORT` (default 7433). JWT secret auto-generated to `~/.flowforge-server/secret.key`.
+Terminal Server (`.env`): `PORT` (default 7433), `CLONE_DIR` (default `C:\GitHub` on Windows, `~/GitHub` on Linux/Mac), `TAILSCALE_ENABLED`, `TAILSCALE_HOSTNAME`. JWT secret auto-generated to `~/.flowforge-server/secret.key`.

@@ -8,11 +8,14 @@ import { createSession } from "../terminal/session-manager";
 
 export const cloneRouter = Router();
 
+const PROMPT_PATTERNS = [/❯/, />\s*$/, /\?\s*$/, /\$\s*$/];
+const INIT_TIMEOUT_MS = 30_000;
+
 cloneRouter.post(
   "/api/clone",
   authMiddleware,
   (req: Request, res: Response) => {
-    const { cloneUrl, launchClaude } = req.body;
+    const { cloneUrl, launchClaude, runInit } = req.body;
 
     if (!cloneUrl || typeof cloneUrl !== "string") {
       res.status(400).json({ error: "Missing cloneUrl" });
@@ -76,21 +79,55 @@ cloneRouter.post(
       }
 
       if (launchClaude) {
+        send({ type: "progress", message: "Launching Claude..." });
         const session = createSession({ cwd: targetDir, cmd: "claude" });
-        if (session) {
-          send({ type: "done", sessionId: session.id });
-        } else {
+        if (!session) {
           send({
             type: "error",
             message:
               "Clone succeeded but failed to create terminal session (max sessions reached)",
           });
+          res.end();
+          return;
+        }
+
+        if (runInit) {
+          send({ type: "progress", message: "Waiting for Claude to load..." });
+
+          let initSent = false;
+
+          const sendInit = () => {
+            if (initSent) return;
+            initSent = true;
+            disposable.dispose();
+            clearTimeout(timeout);
+            send({ type: "progress", message: "Running /init..." });
+            session.pty.write("/init\r");
+            send({ type: "done", sessionId: session.id });
+            res.end();
+          };
+
+          const disposable = session.pty.onData((data: string) => {
+            if (initSent) return;
+            for (const pattern of PROMPT_PATTERNS) {
+              if (pattern.test(data)) {
+                sendInit();
+                return;
+              }
+            }
+          });
+
+          const timeout = setTimeout(() => {
+            sendInit();
+          }, INIT_TIMEOUT_MS);
+        } else {
+          send({ type: "done", sessionId: session.id });
+          res.end();
         }
       } else {
         send({ type: "done" });
+        res.end();
       }
-
-      res.end();
     });
   },
 );
