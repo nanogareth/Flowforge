@@ -8,6 +8,7 @@ import { pairRouter } from "./routes/pair";
 import { cloneRouter } from "./routes/clone";
 import { tailscaleRouter } from "./routes/tailscale";
 import { projectsRouter } from "./routes/projects";
+import { sessionsRouter } from "./routes/sessions";
 import { handleWebSocket } from "./terminal/ws-handler";
 import {
   getSessionCount,
@@ -32,6 +33,7 @@ app.use(pairRouter);
 app.use(cloneRouter);
 app.use(tailscaleRouter);
 app.use(projectsRouter);
+app.use(sessionsRouter);
 
 // Wire session count into health endpoint
 setSessionCountFn(getSessionCount);
