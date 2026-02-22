@@ -33,3 +33,10 @@ export interface ActiveSessionInfo {
   exited: boolean;
   clientCount: number;
 }
+
+export interface ConversationInfo {
+  sessionId: string;
+  slug: string | null;
+  timestamp: string;
+  gitBranch: string | null;
+}
