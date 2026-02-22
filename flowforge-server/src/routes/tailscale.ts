@@ -20,8 +20,14 @@ function getTailscaleStatus(): Promise<TailscaleStatus> {
   };
 
   return new Promise((resolve) => {
+    // On Windows, Tailscale CLI is not on PATH by default
+    const tailscaleBin =
+      process.platform === "win32"
+        ? "C:\\Program Files\\Tailscale\\tailscale.exe"
+        : "tailscale";
+
     execFile(
-      "tailscale",
+      tailscaleBin,
       ["status", "--json"],
       { timeout: 5000 },
       (err, stdout) => {

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "FlowForge",
-    "slug": "flowforge-mobile",
+    "slug": "flowforge",
     "scheme": "flowforge",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -41,6 +41,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1728f16f-448e-4eac-916f-fec9c5fce55e"
+      }
+    },
+    "owner": "nanogareths-organization"
   }
 }

@@ -47,3 +47,5 @@ WorkingTogether.txt
 npx eslint.txt
 yarn warnings.txt
 package-lock.json
+flowforge-server/@nanogareths-organization__flowforge.jks
+*.jks
