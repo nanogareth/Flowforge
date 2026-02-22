@@ -252,6 +252,10 @@ describe("session-manager", () => {
 
   describe("getActiveSessions", () => {
     it("should return all active sessions", () => {
+      // Ensure clean slate — destroy any leftover from prior tests
+      const before = getActiveSessions();
+      for (const s of before) destroySession(s.id);
+
       const { v4 } = require("uuid");
       v4.mockReturnValueOnce("session-a");
       createSession({ cwd: "/projects/foo" });
@@ -276,6 +280,9 @@ describe("session-manager", () => {
     });
 
     it("should filter by cwd prefix", () => {
+      const before = getActiveSessions();
+      for (const s of before) destroySession(s.id);
+
       const { v4 } = require("uuid");
       v4.mockReturnValueOnce("session-a");
       createSession({ cwd: "/projects/foo" });
