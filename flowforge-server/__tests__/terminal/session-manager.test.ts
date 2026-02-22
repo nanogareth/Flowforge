@@ -38,6 +38,7 @@ import {
   createSession,
   getSession,
   getSessionCount,
+  getActiveSessions,
   attachClient,
   detachClient,
   destroySession,
@@ -246,6 +247,56 @@ describe("session-manager", () => {
       expect(ws.send).toHaveBeenCalledWith(
         JSON.stringify({ type: "exit", code: 42 }),
       );
+    });
+  });
+
+  describe("getActiveSessions", () => {
+    it("should return all active sessions", () => {
+      const { v4 } = require("uuid");
+      v4.mockReturnValueOnce("session-a");
+      createSession({ cwd: "/projects/foo" });
+      v4.mockReturnValueOnce("session-b");
+      createSession({ cwd: "/projects/bar" });
+
+      const active = getActiveSessions();
+      expect(active).toHaveLength(2);
+      expect(active[0]).toMatchObject({
+        id: "session-a",
+        cwd: "/projects/foo",
+        exited: false,
+      });
+      expect(active[1]).toMatchObject({
+        id: "session-b",
+        cwd: "/projects/bar",
+        exited: false,
+      });
+
+      destroySession("session-a");
+      destroySession("session-b");
+    });
+
+    it("should filter by cwd prefix", () => {
+      const { v4 } = require("uuid");
+      v4.mockReturnValueOnce("session-a");
+      createSession({ cwd: "/projects/foo" });
+      v4.mockReturnValueOnce("session-b");
+      createSession({ cwd: "/other/bar" });
+
+      const filtered = getActiveSessions("/projects");
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].id).toBe("session-a");
+
+      destroySession("session-a");
+      destroySession("session-b");
+    });
+
+    it("should include client count", () => {
+      createSession();
+      const ws = createMockWs();
+      attachClient("test-session-id", ws);
+
+      const active = getActiveSessions();
+      expect(active[0].clientCount).toBe(1);
     });
   });
 });

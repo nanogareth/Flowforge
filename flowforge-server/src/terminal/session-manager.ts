@@ -81,6 +81,21 @@ export function getSessionCount(): number {
   return sessions.size;
 }
 
+export function getActiveSessions(cwdPrefix?: string): ActiveSessionInfo[] {
+  const result: ActiveSessionInfo[] = [];
+  for (const session of sessions.values()) {
+    if (cwdPrefix && !session.cwd.startsWith(cwdPrefix)) continue;
+    result.push({
+      id: session.id,
+      cwd: session.cwd,
+      lastActivity: session.lastActivity,
+      exited: session.exited,
+      clientCount: session.clients.size,
+    });
+  }
+  return result;
+}
+
 export function attachClient(sessionId: string, ws: WebSocket): boolean {
   const session = sessions.get(sessionId);
   if (!session) return false;
