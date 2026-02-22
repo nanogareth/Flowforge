@@ -74,10 +74,9 @@ export default function ProjectsScreen() {
   }
 
   const handleProjectPress = (project: Project) => {
-    const cwd = `${cloneDir}/${project.path}`;
     router.push({
-      pathname: "/(app)/server/terminal",
-      params: { cwd, cmd: "claude" },
+      pathname: "/(app)/server/project-detail",
+      params: { name: project.name, cloneDir },
     });
   };
 
