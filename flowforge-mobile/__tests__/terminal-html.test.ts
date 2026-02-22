@@ -76,4 +76,10 @@ describe("getTerminalHtml", () => {
   it("should forward key messages to WebSocket as input", () => {
     expect(html).toContain("type: 'input', data: msg.data");
   });
+
+  it("should postMessage session ID to React Native", () => {
+    const html = getTerminalHtml("ws://localhost:7433/terminal?token=t");
+    expect(html).toContain("window.ReactNativeWebView.postMessage");
+    expect(html).toContain("type: 'sessionId'");
+  });
 });

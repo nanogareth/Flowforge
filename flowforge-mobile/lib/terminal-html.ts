@@ -92,6 +92,9 @@ export function getTerminalHtml(wsUrl: string): string {
           switch (msg.type) {
             case 'session':
               sessionId = msg.id;
+              if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'sessionId', id: msg.id }));
+              }
               break;
             case 'output':
               term.write(msg.data);

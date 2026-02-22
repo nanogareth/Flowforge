@@ -25,6 +25,18 @@ export default function TerminalScreen() {
 
   const { homeServerUrl, homeServerToken } = useStore();
   const webViewRef = useRef<WebView>(null);
+  const currentSessionId = useRef<string | null>(sessionId || null);
+
+  const handleWebViewMessage = (event: { nativeEvent: { data: string } }) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === "sessionId" && msg.id) {
+        currentSessionId.current = msg.id;
+      }
+    } catch {
+      // ignore parse errors
+    }
+  };
 
   if (!homeServerUrl || !homeServerToken) {
     router.replace("/(app)");
@@ -70,6 +82,7 @@ export default function TerminalScreen() {
         scrollEnabled={false}
         overScrollMode="never"
         textInteractionEnabled={false}
+        onMessage={handleWebViewMessage}
       />
 
       <TerminalToolbar onSendKey={handleSendKey} bottomInset={insets.bottom} />
