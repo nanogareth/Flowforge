@@ -25,3 +25,11 @@ export type ServerMessage =
   | { type: "exit"; code: number }
   | { type: "pong" }
   | { type: "error"; message: string };
+
+export interface ActiveSessionInfo {
+  id: string;
+  cwd: string;
+  lastActivity: number;
+  exited: boolean;
+  clientCount: number;
+}

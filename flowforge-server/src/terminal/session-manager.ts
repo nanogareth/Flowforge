@@ -2,7 +2,7 @@ import * as pty from "node-pty";
 import { v4 as uuidv4 } from "uuid";
 import type { WebSocket } from "ws";
 import { config } from "../config";
-import type { TerminalSession, ServerMessage } from "../types";
+import type { TerminalSession, ServerMessage, ActiveSessionInfo } from "../types";
 
 const sessions = new Map<string, TerminalSession>();
 
