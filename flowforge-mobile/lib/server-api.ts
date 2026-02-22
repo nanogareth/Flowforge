@@ -25,6 +25,56 @@ export async function fetchProjects(
   return response.json();
 }
 
+export interface ActiveSession {
+  id: string;
+  cwd: string;
+  lastActivity: number;
+  exited: boolean;
+  clientCount: number;
+}
+
+export interface Conversation {
+  sessionId: string;
+  slug: string | null;
+  timestamp: string;
+  gitBranch: string | null;
+}
+
+export interface ProjectDetail {
+  name: string;
+  path: string;
+  hasClaudeMd: boolean;
+  lastModified: string;
+  activeSessions: ActiveSession[];
+  recentConversations: Conversation[];
+}
+
+export async function fetchProjectDetail(
+  serverUrl: string,
+  serverToken: string,
+  projectName: string,
+): Promise<ProjectDetail> {
+  const normalizedUrl = serverUrl.replace(/\/+$/, "");
+  const response = await fetch(
+    `${normalizedUrl}/api/projects/${encodeURIComponent(projectName)}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${serverToken}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `Failed to fetch project detail (${response.status}): ${text}`,
+    );
+  }
+
+  return response.json();
+}
+
 export interface CloneProgress {
   type: "progress" | "done" | "error";
   message?: string;

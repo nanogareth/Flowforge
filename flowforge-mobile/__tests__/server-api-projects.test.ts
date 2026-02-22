@@ -1,4 +1,4 @@
-import { fetchProjects } from "../lib/server-api";
+import { fetchProjects, fetchProjectDetail } from "../lib/server-api";
 
 // Mock fetch
 const mockFetch = jest.fn();
@@ -114,5 +114,72 @@ describe("fetchProjects", () => {
     const result = await fetchProjects(serverUrl, token);
     expect(result.projects).toEqual([]);
     expect(result.cloneDir).toBe("/repos");
+  });
+});
+
+describe("fetchProjectDetail", () => {
+  beforeEach(() => {
+    global.fetch = jest.fn();
+  });
+
+  it("should fetch project detail with correct URL and auth header", async () => {
+    const mockData = {
+      name: "my-project",
+      path: "my-project",
+      hasClaudeMd: true,
+      lastModified: "2026-02-15T10:00:00Z",
+      activeSessions: [],
+      recentConversations: [],
+    };
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    const result = await fetchProjectDetail(
+      "http://localhost:7433",
+      "test-token",
+      "my-project",
+    );
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://localhost:7433/api/projects/my-project",
+      expect.objectContaining({
+        method: "GET",
+        headers: { Authorization: "Bearer test-token" },
+      }),
+    );
+    expect(result).toEqual(mockData);
+  });
+
+  it("should throw on non-ok response", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: async () => "Not found",
+    });
+
+    await expect(
+      fetchProjectDetail("http://localhost:7433", "test-token", "missing"),
+    ).rejects.toThrow("Failed to fetch project detail (404)");
+  });
+
+  it("should URL-encode the project name", async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    await fetchProjectDetail(
+      "http://localhost:7433",
+      "test-token",
+      "my project",
+    );
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://localhost:7433/api/projects/my%20project",
+      expect.anything(),
+    );
   });
 });
