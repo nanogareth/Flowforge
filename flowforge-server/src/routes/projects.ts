@@ -3,6 +3,8 @@ import fs from "fs";
 import path from "path";
 import { authMiddleware } from "../auth/middleware";
 import { config } from "../config";
+import { getActiveSessions } from "../terminal/session-manager";
+import { getConversationHistory } from "../lib/claude-sessions";
 
 export const projectsRouter = Router();
 
@@ -62,6 +64,43 @@ projectsRouter.get(
       res.json({ cloneDir: config.cloneDir, projects });
     } catch (err) {
       res.status(500).json({ error: "Failed to list projects" });
+    }
+  },
+);
+
+projectsRouter.get(
+  "/api/projects/:name",
+  authMiddleware,
+  async (req: Request, res: Response) => {
+    const projectName = req.params.name as string;
+    const dirPath = path.join(config.cloneDir, projectName);
+
+    try {
+      const gitPath = path.join(dirPath, ".git");
+      const gitStat = fs.statSync(gitPath);
+      if (!gitStat.isDirectory()) {
+        res.status(404).json({ error: "Project not found" });
+        return;
+      }
+
+      const claudeMdPath = path.join(dirPath, "CLAUDE.md");
+      const hasClaudeMd = fs.existsSync(claudeMdPath);
+
+      const activeSessions = getActiveSessions(path.resolve(dirPath));
+      const recentConversations = await getConversationHistory(
+        path.resolve(dirPath),
+      );
+
+      res.json({
+        name: projectName,
+        path: projectName,
+        hasClaudeMd,
+        lastModified: gitStat.mtime.toISOString(),
+        activeSessions,
+        recentConversations,
+      });
+    } catch {
+      res.status(404).json({ error: "Project not found" });
     }
   },
 );
