@@ -14,14 +14,16 @@ import {
 
 describe("buildClaudeSlug", () => {
   it("should convert Windows absolute path to slug", () => {
+    // C:\ becomes C-- (colon→dash + backslash→dash), rest use single dash
     expect(buildClaudeSlug("C:\\GitHub\\my-project")).toBe(
-      "C--GitHub--my-project",
+      "C--GitHub-my-project",
     );
   });
 
   it("should convert Unix absolute path to slug", () => {
+    // Leading / becomes a dash which gets stripped by replace(/^-+/, "")
     expect(buildClaudeSlug("/home/user/GitHub/my-project")).toBe(
-      "home--user--GitHub--my-project",
+      "home-user-GitHub-my-project",
     );
   });
 });
@@ -48,12 +50,15 @@ describe("parseSessionFile", () => {
     fs.writeFileSync(filePath, entry + "\n");
 
     const result = await parseSessionFile(filePath);
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       sessionId: "abc-123",
       slug: "fluffy-bouncing-hellman",
       timestamp: "2026-02-16T14:03:26.605Z",
       gitBranch: "main",
     });
+    // Just-written file should be active
+    expect(result!.active).toBe(true);
+    expect(result!.lastModified).toBeDefined();
   });
 
   it("should skip file-history-snapshot entries", async () => {
@@ -105,7 +110,7 @@ describe("getConversationHistory", () => {
 
   it("should find and parse session files", async () => {
     // Create directory matching the slug for /tmp/test-projects/my-project
-    const slug = "tmp--test-projects--my-project";
+    const slug = "tmp-test-projects-my-project";
     const sessionDir = path.join(claudeProjectsDir, slug);
     fs.mkdirSync(sessionDir, { recursive: true });
 
@@ -127,7 +132,7 @@ describe("getConversationHistory", () => {
   });
 
   it("should sort by timestamp descending and respect limit", async () => {
-    const slug = "tmp--test-projects--my-project";
+    const slug = "tmp-test-projects-my-project";
     const sessionDir = path.join(claudeProjectsDir, slug);
     fs.mkdirSync(sessionDir, { recursive: true });
 

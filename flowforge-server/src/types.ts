@@ -39,4 +39,6 @@ export interface ConversationInfo {
   slug: string | null;
   timestamp: string;
   gitBranch: string | null;
+  lastModified: string;
+  active: boolean;
 }

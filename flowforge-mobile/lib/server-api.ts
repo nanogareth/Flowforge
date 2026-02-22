@@ -38,6 +38,8 @@ export interface Conversation {
   slug: string | null;
   timestamp: string;
   gitBranch: string | null;
+  lastModified: string;
+  active: boolean;
 }
 
 export interface ProjectDetail {

@@ -5,15 +5,24 @@ import readline from "readline";
 import type { ConversationInfo } from "../types";
 
 export function buildClaudeSlug(absolutePath: string): string {
+  // Claude's format: colon → dash, each separator → dash
+  // C:\GitHub\Flowforge → C--GitHub-Flowforge (colon+backslash = two dashes)
   return absolutePath
-    .replace(/:/g, "")
-    .replace(/[\\/]+/g, "--")
+    .replace(/:/g, "-")
+    .replace(/[\\/]/g, "-")
     .replace(/^-+/, "");
 }
+
+// A session is considered "active" if its JSONL was written to within this window
+const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export async function parseSessionFile(
   filePath: string,
 ): Promise<ConversationInfo | null> {
+  const stat = fs.statSync(filePath);
+  const lastModified = stat.mtime.toISOString();
+  const active = Date.now() - stat.mtime.getTime() < ACTIVE_THRESHOLD_MS;
+
   const stream = fs.createReadStream(filePath, { encoding: "utf-8" });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
@@ -30,6 +39,8 @@ export async function parseSessionFile(
           slug: entry.slug || null,
           timestamp: entry.timestamp || null,
           gitBranch: entry.gitBranch || null,
+          lastModified,
+          active,
         };
       } catch {
         continue;
@@ -40,12 +51,13 @@ export async function parseSessionFile(
     stream.destroy();
   }
 
-  const stat = fs.statSync(filePath);
   return {
     sessionId: path.basename(filePath, ".jsonl"),
     slug: null,
-    timestamp: stat.mtime.toISOString(),
+    timestamp: lastModified,
     gitBranch: null,
+    lastModified,
+    active,
   };
 }
 

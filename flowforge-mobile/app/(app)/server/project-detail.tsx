@@ -35,6 +35,7 @@ function formatRelativeTime(dateOrMs: string | number): string {
 
 type SectionItem =
   | { type: "active"; data: ActiveSession | null }
+  | { type: "native"; data: Conversation | null }
   | { type: "conversation"; data: Conversation | null };
 
 export default function ProjectDetailScreen() {
@@ -116,28 +117,37 @@ export default function ProjectDetailScreen() {
   }> = [];
 
   if (detail) {
-    const activeSessions: SectionItem[] = detail.activeSessions
+    // FlowForge-spawned terminal sessions
+    const terminalSessions: SectionItem[] = detail.activeSessions
       .filter((s) => !s.exited)
       .map((s) => ({ type: "active" as const, data: s }));
+
+    // Native Claude sessions detected by recent JSONL writes
+    const nativeSessions: SectionItem[] = detail.recentConversations
+      .filter((c) => c.active)
+      .map((c) => ({ type: "native" as const, data: c }));
+
+    const allRunning = [...terminalSessions, ...nativeSessions];
 
     sections.push({
       title: "Running Sessions",
       data:
-        activeSessions.length > 0
-          ? activeSessions
+        allRunning.length > 0
+          ? allRunning
           : [{ type: "active" as const, data: null }],
       emptyMessage: "No running sessions",
     });
 
-    const conversations: SectionItem[] = detail.recentConversations.map(
-      (c) => ({ type: "conversation" as const, data: c }),
-    );
+    // Past conversations (exclude active ones already shown above)
+    const pastConversations: SectionItem[] = detail.recentConversations
+      .filter((c) => !c.active)
+      .map((c) => ({ type: "conversation" as const, data: c }));
 
     sections.push({
       title: "Recent Conversations",
       data:
-        conversations.length > 0
-          ? conversations
+        pastConversations.length > 0
+          ? pastConversations
           : [{ type: "conversation" as const, data: null }],
       emptyMessage: "No previous conversations",
     });
@@ -181,6 +191,30 @@ export default function ProjectDetailScreen() {
               </Text>
             </View>
             <Text className="text-primary text-sm">Rejoin</Text>
+          </View>
+        </Pressable>
+      );
+    }
+
+    if (item.type === "native") {
+      const conv = item.data;
+      return (
+        <Pressable
+          onPress={() => handleConversation(conv)}
+          className="bg-surface border border-border rounded-lg p-4 mx-4 mb-2 active:border-primary"
+        >
+          <View className="flex-row items-center">
+            <View className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-3" />
+            <View className="flex-1">
+              <Text className="text-white text-sm font-medium">
+                {conv.slug || conv.sessionId.slice(0, 8)}
+              </Text>
+              <Text className="text-gray-500 text-xs mt-0.5">
+                Active {formatRelativeTime(conv.lastModified)} · Desktop
+                {conv.gitBranch ? ` · ${conv.gitBranch}` : ""}
+              </Text>
+            </View>
+            <Text className="text-primary text-sm">Resume</Text>
           </View>
         </Pressable>
       );
@@ -273,7 +307,7 @@ export default function ProjectDetailScreen() {
               item.data
                 ? item.type === "active"
                   ? item.data.id
-                  : item.data.sessionId
+                  : `${item.type}-${item.data.sessionId}`
                 : `empty-${index}`
             }
             renderItem={renderItem}
