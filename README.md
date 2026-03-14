@@ -66,6 +66,32 @@ npm run dev            # Starts on port 7433, displays pairing code
 
 The server requires a C/C++ toolchain for `node-pty` — see the [server README](flowforge-server/README.md#prerequisites) for platform-specific instructions.
 
+## `/flowforge-init` — Claude Code Slash Command
+
+A standalone slash command for bootstrapping new projects from your terminal. It generates CLAUDE.md, .gitignore, `.claude/settings.json`, and a GitHub Actions workflow — all tailored to your chosen workflow and stack.
+
+### Install
+
+Copy or symlink the command to your global Claude Code commands directory:
+
+```bash
+# Symlink (recommended — stays in sync with repo)
+ln -s /path/to/Flowforge/commands/flowforge-init.md ~/.claude/commands/flowforge-init.md
+
+# Or copy
+cp commands/flowforge-init.md ~/.claude/commands/flowforge-init.md
+```
+
+### Usage
+
+Inside any Claude Code session:
+
+```
+/flowforge-init my-project
+```
+
+Claude will ask for your workflow, stack, and whether to create a GitHub repo, then scaffold everything.
+
 ## Template System
 
 FlowForge generates project scaffolding through a three-layer composition:
