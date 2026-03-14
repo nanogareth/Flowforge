@@ -52,5 +52,4 @@ coverage/
 
 expo-env.d.ts
 # @end expo-cli
-android\
 *.jks

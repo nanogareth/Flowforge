@@ -43,11 +43,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "1728f16f-448e-4eac-916f-fec9c5fce55e"
-      }
-    },
-    "owner": "nanogareths-organization"
+      "router": {}
+    }
   }
 }

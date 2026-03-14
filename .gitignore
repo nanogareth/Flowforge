@@ -42,10 +42,12 @@ tests/reports/*.json
 # Archive
 /archive/
 
-# Scratch / command output logs
-WorkingTogether.txt
-npx eslint.txt
-yarn warnings.txt
-package-lock.json
-flowforge-server/@nanogareths-organization__flowforge.jks
+# Signing
 *.jks
+*.keystore
+
+# Personal/private docs (not for public repo)
+docs/project-briefs-*.md
+docs/vision-*.md
+docs/handover/
+docs/plans/
