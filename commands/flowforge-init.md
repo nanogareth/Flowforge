@@ -1,5 +1,5 @@
 ---
-description: "Bootstrap a new project with CLAUDE.md, hooks, settings, and CI"
+description: "Bootstrap a new project with CLAUDE.md, sandbox, settings, and CI"
 argument-hint: "<project-name>"
 allowed-tools: ["Bash", "Read", "Write", "Glob", "Grep", "Edit"]
 ---
@@ -168,18 +168,7 @@ Deduplicate patterns that appear in both platform and stack sections.
 
 ### Step 4: Generate .claude/settings.json
 
-Write `.claude/settings.json` with stack-appropriate environment variables:
-
-```json
-{
-  "env": {
-    "TEST_RUNNER_CMD": "<per stack>",
-    "LINT_CMD": "<per stack>",
-    "FORMAT_CMD": "<per stack>",
-    "TYPE_CHECK_CMD": "<per stack>"
-  }
-}
-```
+Write `.claude/settings.json` with stack-appropriate environment variables and sandbox configuration. Build the full JSON object and write it once.
 
 **Stack env values:**
 
@@ -190,6 +179,91 @@ Write `.claude/settings.json` with stack-appropriate environment variables:
 | python | `py -m pytest` | `ruff check .` | `ruff format .` | `py -m mypy .` |
 | rust | `cargo test` | `cargo clippy` | `cargo fmt` | (omit) |
 | custom | (omit all — /init will configure) |
+
+**Sandbox configuration (macOS / Linux / WSL2 only):**
+
+Detect whether the environment supports sandboxing. Check if running on macOS, Linux, or WSL2 (look for `microsoft` in `/proc/version`). If on **native Windows**, omit the sandbox block and print: `Sandbox provisioning skipped — not supported on native Windows. Enable it when running in WSL2.`
+
+If sandboxing is supported, include the `sandbox` block in the same settings.json file.
+
+**Sandbox filesystem restrictions (all workflows):**
+
+| Key | Paths | Rationale |
+|-----|-------|-----------|
+| `allowWrite` | `.`, `//tmp` | Project dir and temp files |
+| `denyRead` | `//etc/shadow`, `//etc/passwd` | Sensitive system files |
+| `denyWrite` | `~/.ssh`, `~/.gnupg`, `~/.claude/settings.json` | Prevent modification of credentials and global config |
+
+Path prefixes: `//` = absolute from filesystem root, `~/` = relative to home, `.` = relative to settings file directory.
+
+**Sandbox enabled by workflow:**
+
+| Workflow | `enabled` | Notes |
+|----------|-----------|-------|
+| greenfield | `true` | Full sandbox |
+| feature | `true` | Full sandbox |
+| research | `true` | Full sandbox, adds `api.github.com` to network allowlist |
+| learning | `false` | Block scaffolded but disabled — avoids blocking exploration |
+
+**Network allowlist by stack:**
+
+| Stack | Allowed domains |
+|-------|----------------|
+| typescript-react | `registry.npmjs.org`, `github.com` |
+| typescript-node | `registry.npmjs.org`, `github.com` |
+| python | `pypi.org`, `files.pythonhosted.org`, `github.com` |
+| rust | `crates.io`, `static.crates.io`, `github.com` |
+| custom | `github.com` |
+
+For **research** workflow, additionally include `api.github.com`.
+
+**Complete example — greenfield + typescript-node:**
+
+```json
+{
+  "env": {
+    "TEST_RUNNER_CMD": "npm test",
+    "LINT_CMD": "npm run lint",
+    "FORMAT_CMD": "npm run format",
+    "TYPE_CHECK_CMD": "npm run typecheck"
+  },
+  "sandbox": {
+    "enabled": true,
+    "filesystem": {
+      "allowWrite": [".", "//tmp"],
+      "denyRead": ["//etc/shadow", "//etc/passwd"],
+      "denyWrite": ["~/.ssh", "~/.gnupg", "~/.claude/settings.json"]
+    },
+    "network": {
+      "allowedDomains": ["registry.npmjs.org", "github.com"]
+    }
+  }
+}
+```
+
+**Complete example — learning + python:**
+
+```json
+{
+  "env": {
+    "TEST_RUNNER_CMD": "py -m pytest",
+    "LINT_CMD": "ruff check .",
+    "FORMAT_CMD": "ruff format .",
+    "TYPE_CHECK_CMD": "py -m mypy ."
+  },
+  "sandbox": {
+    "enabled": false,
+    "filesystem": {
+      "allowWrite": [".", "//tmp"],
+      "denyRead": ["//etc/shadow", "//etc/passwd"],
+      "denyWrite": ["~/.ssh", "~/.gnupg", "~/.claude/settings.json"]
+    },
+    "network": {
+      "allowedDomains": ["pypi.org", "files.pythonhosted.org", "github.com"]
+    }
+  }
+}
+```
 
 ### Step 5: Generate .github/workflows/claude.yml
 
