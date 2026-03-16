@@ -70,16 +70,19 @@ The server requires a C/C++ toolchain for `node-pty` — see the [server README]
 
 A standalone slash command for bootstrapping new projects from your terminal. It generates CLAUDE.md, .gitignore, `.claude/settings.json`, and a GitHub Actions workflow — all tailored to your chosen workflow and stack.
 
+Also includes `/flowforge-register` for adding existing projects to [Gaia](https://github.com/nanogareth/Gaia) (a life/project management system) so the SessionEnd hook auto-syncs Claude Code activity.
+
 ### Install
 
-Copy or symlink the command to your global Claude Code commands directory:
+Copy or symlink the commands to your global Claude Code commands directory:
 
 ```bash
 # Symlink (recommended — stays in sync with repo)
 ln -s /path/to/Flowforge/commands/flowforge-init.md ~/.claude/commands/flowforge-init.md
+ln -s /path/to/Flowforge/commands/flowforge-register.md ~/.claude/commands/flowforge-register.md
 
 # Or copy
-cp commands/flowforge-init.md ~/.claude/commands/flowforge-init.md
+cp commands/flowforge-*.md ~/.claude/commands/
 ```
 
 ### Usage
@@ -87,10 +90,12 @@ cp commands/flowforge-init.md ~/.claude/commands/flowforge-init.md
 Inside any Claude Code session:
 
 ```
-/flowforge-init my-project
+/flowforge-init my-project        # Bootstrap a new project
+/flowforge-register               # Register current project with Gaia
+/flowforge-register /path/to/proj # Register a specific project
 ```
 
-Claude will ask for your workflow, stack, and whether to create a GitHub repo, then scaffold everything.
+`/flowforge-init` asks for your workflow, stack, and optional Gaia domain, then scaffolds everything. `/flowforge-register` retroactively registers existing projects with Gaia's manifest and optionally backfills missing Claude Code config.
 
 ## Template System
 

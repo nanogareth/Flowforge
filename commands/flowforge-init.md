@@ -25,6 +25,7 @@ If `$ARGUMENTS` is empty, ask the user for a project name before proceeding.
 3. **Stack** — one of: `typescript-react`, `typescript-node`, `python`, `rust`, `custom`
 4. **GitHub repo** — create a GitHub repo? (yes/no, default: yes). If yes, ask public or private (default: private).
 5. **Context** — any additional context or requirements to include? (can be empty)
+6. **Gaia domain** — register in Gaia? If Gaia is detected (see Step 6a), ask which domain to register under. Show the available domains from the manifest. Default: skip if Gaia is not found.
 
 ## Execution
 
@@ -263,6 +264,51 @@ gh repo create "$PROJECT_NAME" --private --source=. --push
 
 If `gh` is not installed or not authenticated, print the manual steps instead.
 
+### Step 6a: Register with Gaia (if requested)
+
+Check if Gaia exists: look for `$GAIA_ROOT` env var, then fall back to `C:\GitHub\Gaia` (Windows) or `~/GitHub/Gaia` (elsewhere). If `manifest.yaml` exists in that location, Gaia is available.
+
+If the user chose to register:
+
+1. **Read available domains** from `manifest.yaml` — parse the `domain:` fields from existing entries to show the user what domains exist (e.g., `ai-projects`, `work-projects`). The user can pick one or type a new domain name.
+
+2. **Append to `manifest.yaml`** — add a new entry at the end of the file:
+
+```yaml
+  - name: {project name}
+    github: {github username}/{project name lowercase}
+    domain: {chosen domain}
+    status: active
+    description: {project description}
+```
+
+The `github:` field should use the actual GitHub remote URL's owner/repo if a repo was created in Step 6, or the user's GitHub username otherwise. Get the GitHub username via `gh api user -q .login` if available.
+
+3. **Update the domain file** — if `domains/{domain}.md` exists in the Gaia root, append a subsection under `## Current State`:
+
+```markdown
+### {project name}
+
+- **Status:** Active
+- **Focus:** {description}
+- **Repo:** [{github-path}](https://github.com/{github-path})
+```
+
+If the domain file doesn't exist, skip this step (the domain file should be created via Gaia, not FlowForge).
+
+4. **Commit the Gaia changes:**
+
+```bash
+cd "$GAIA_ROOT"
+git add manifest.yaml "domains/{domain}.md"
+git commit -m "register: {project name} in {domain}"
+git push
+```
+
+If the push fails, warn the user but don't fail the overall flow.
+
+After registration, the global SessionEnd hook (`~/.claude/hooks/gaia-session-sync.ps1`) will automatically sync future Claude Code sessions in this project back to Gaia's domain file and `temporal/today.md`. No per-project hook setup is needed.
+
 ### Step 7: Initial commit
 
 ```bash
@@ -292,6 +338,7 @@ Files created:
   .gitignore
   .claude/settings.json
   .github/workflows/claude.yml
+Gaia: {registered in {domain} or "not registered"}
 
 Next steps:
   cd {path}
