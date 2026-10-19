@@ -1,0 +1,16 @@
+schema: portfolio/project@1
+id: flowforge
+name: "FlowForge"
+aliases: ["Flowforge","nanogareth/Flowforge"]
+partition: personal
+kinds: [code]
+status: parked
+# NOTE: remote-terminal half is superseded by doubleoseven (A/H2 PTY terminals); /flowforge-init and /flowforge-register slash commands are still live
+summary: "Mobile app that scaffolds Claude Code repos and opens remote terminals to a home dev server"
+bets:
+  - id: phone-pty-terminal-for-cc
+    claim: "Driving Claude Code from a phone through a paired PTY/xterm WebView terminal is usable for real work"
+    since: "2026-01-27"
+  - id: template-composition-scaffolds-cc
+    claim: "Platform + workflow + stack template composition yields a CLAUDE.md and hooks setup good enough to start any project"
+    since: "2026-01-27"
