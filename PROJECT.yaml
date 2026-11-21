@@ -1,4 +1,4 @@
-schema: portfolio/project@1
+schema: portfolio/project@2
 id: flowforge
 name: "FlowForge"
 aliases: ["Flowforge","nanogareth/Flowforge"]
